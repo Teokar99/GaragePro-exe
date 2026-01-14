@@ -63,11 +63,7 @@
         "digestAlgorithm": "sha256",
         "timestampUrl": "",
         "wix": {
-          "language": "en-US",
-          "template": null,
-          "banner": null,
-          "dialog": null,
-          "license": null
+          "language": "en-US"
         },
         "webviewInstallMode": {
           "type": "embedBootstrapper"

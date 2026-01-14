@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { usePermissions } from '../hooks/usePermissions';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../hooks/useAuth";
+import { usePermissions } from "../hooks/usePermissions";
 import {
   LayoutDashboard,
   Users,
@@ -14,8 +14,8 @@ import {
   Database,
   UserCog,
   DollarSign,
-  Settings
-} from 'lucide-react';
+  Settings,
+} from "lucide-react";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,57 +23,95 @@ interface LayoutProps {
   onNavigate: (page: string) => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) => {
-  const { user, signOut } = useAuth();
+const Layout: React.FC<LayoutProps> = ({
+  children,
+  currentPage,
+  onNavigate,
+}) => {
+  const { user, logout } = useAuth();
   const permissions = usePermissions();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('darkMode');
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("darkMode");
       if (saved !== null) return JSON.parse(saved);
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
     }
     return false;
   });
 
   // Handle dark mode
   useEffect(() => {
-    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+    localStorage.setItem("darkMode", JSON.stringify(darkMode));
     if (darkMode) {
-      document.documentElement.classList.add('dark');
+      document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
     }
   }, [darkMode]);
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
 
   const allNavigation = [
-    { name: 'Dashboard', icon: LayoutDashboard, page: 'dashboard', requiresPermission: 'canViewDashboard' },
-    { name: 'Customers', icon: Users, page: 'customers', requiresPermission: 'canViewCustomers' },
-    { name: 'Services', icon: Wrench, page: 'services', requiresPermission: 'canViewServices' },
-    { name: 'Users', icon: UserCog, page: 'users', requiresPermission: 'canManageUsers' },
-    { name: 'Database Tools', icon: Database, page: 'database', requiresPermission: 'canManageUsers' },
-    { name: 'revenue', icon: DollarSign, page: 'revenue', requiresPermission: 'canViewFinancials' },
-    { name: 'Settings', icon: Settings, page: 'settings', requiresPermission: 'canManageUsers' },
+    {
+      name: "Dashboard",
+      icon: LayoutDashboard,
+      page: "dashboard",
+      requiresPermission: "canViewDashboard",
+    },
+    {
+      name: "Customers",
+      icon: Users,
+      page: "customers",
+      requiresPermission: "canViewCustomers",
+    },
+    {
+      name: "Services",
+      icon: Wrench,
+      page: "services",
+      requiresPermission: "canViewServices",
+    },
+    {
+      name: "Users",
+      icon: UserCog,
+      page: "users",
+      requiresPermission: "canManageUsers",
+    },
+    {
+      name: "Database Tools",
+      icon: Database,
+      page: "database",
+      requiresPermission: "canManageUsers",
+    },
+    {
+      name: "revenue",
+      icon: DollarSign,
+      page: "revenue",
+      requiresPermission: "canViewFinancials",
+    },
+    {
+      name: "Settings",
+      icon: Settings,
+      page: "settings",
+      requiresPermission: "canManageUsers",
+    },
   ];
 
-  const navigation = allNavigation.filter(item => {
+  const navigation = allNavigation.filter((item) => {
     const permissionKey = item.requiresPermission as keyof typeof permissions;
     return permissions[permissionKey];
   });
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await logout();
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error("Error signing out:", error);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors">
-
       {/* MOBILE SIDEBAR BACKDROP */}
       {sidebarOpen && (
         <div
@@ -90,11 +128,12 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
           border-r border-gray-200 dark:border-slate-700
           transform transition-transform duration-300
           lg:translate-x-0
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          }
         `}
       >
         <div className="flex flex-col h-full">
-
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-slate-700">
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -110,7 +149,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
 
           {/* Navigation */}
           <nav className="px-4 py-6 space-y-2">
-            {navigation.map(item => {
+            {navigation.map((item) => {
               const isActive = currentPage === item.page;
               return (
                 <button
@@ -122,9 +161,10 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
                   className={`
                     w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium
                     transition-colors
-                    ${isActive
-                      ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700/50'
+                    ${
+                      isActive
+                        ? "bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700/50"
                     }
                   `}
                 >
@@ -134,7 +174,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
               );
             })}
           </nav>
-          
 
           {/* Filler */}
           <div className="flex-1"></div>
@@ -158,7 +197,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
               )}
             </button>
           </div>
-          
 
           {/* USER + SIGN OUT */}
           <div className="px-4 py-4 border-t border-gray-200 dark:border-slate-700">
@@ -166,7 +204,11 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
               <div className="flex items-center">
                 <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
                   <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">
-                    {(user?.full_name?.charAt(0) ?? user?.email?.charAt(0) ?? "A").toUpperCase()}
+                    {(
+                      user?.full_name?.charAt(0) ??
+                      user?.email?.charAt(0) ??
+                      "A"
+                    ).toUpperCase()}
                   </span>
                 </div>
                 <div className="ml-3 flex-1 min-w-0">
@@ -192,7 +234,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
       {/* MAIN CONTENT */}
       {/* =============================== */}
       <div className="pl-0 lg:pl-64 transition-all">
-
         {/* MOBILE TOP BAR */}
         <div className="sticky top-0 z-30 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-4 lg:hidden">
           <div className="flex items-center justify-between">
@@ -207,17 +248,18 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
               onClick={toggleDarkMode}
               className="p-2 rounded-lg text-gray-500 hover:text-gray-300"
             >
-              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {darkMode ? (
+                <Sun className="w-5 h-5" />
+              ) : (
+                <Moon className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>
 
         {/* PAGE CONTENT */}
-        <main className="p-6">
-          {children}
-        </main>
+        <main className="p-6">{children}</main>
       </div>
-
     </div>
   );
 };
