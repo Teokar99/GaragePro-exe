@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Smooth scrolling and better font rendering */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-feature-settings: 'rlig' 1, 'calt' 1;
+}
+
+/* Custom CSS utilities */
+.card {
+  @apply bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl shadow-lg shadow-gray-200/50 dark:shadow-slate-900/50 border border-gray-200/80 dark:border-slate-700/80 transition-all duration-200 hover:shadow-xl hover:shadow-gray-200/60 dark:hover:shadow-slate-900/60;
+}
+
+.btn-primary {
+  @apply bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98];
+}
+
+.btn-secondary {
+  @apply bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 px-6 py-3 rounded-xl font-semibold transition-all duration-200 border border-gray-200 dark:border-slate-600 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98];
+}
+
+.btn-success {
+  @apply bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:scale-[1.02] active:scale-[0.98];
+}
+
+.input {
+  @apply w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-white/90 dark:bg-slate-700/90 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 shadow-sm focus:shadow-md placeholder:text-gray-400 dark:placeholder:text-gray-500;
+}
+
+.label {
+  @apply block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2;
+}
+
+.stat-card {
+  @apply bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm p-6 rounded-xl shadow-lg shadow-gray-200/50 dark:shadow-slate-900/50 border border-gray-200/80 dark:border-slate-700/80 transition-all duration-200 hover:shadow-xl hover:shadow-gray-200/60 dark:hover:shadow-slate-900/60 hover:scale-[1.02];
+}
+
+.stat-icon {
+  @apply w-12 h-12 rounded-xl flex items-center justify-center shadow-lg;
+}
+
+.list-item {
+  @apply p-6 hover:bg-gray-50/80 dark:hover:bg-slate-700/50 transition-all duration-200 cursor-pointer hover:scale-[1.01];
+}
+
+.modal-backdrop {
+  @apply fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center p-4 z-50;
+}
+
+.modal-content {
+  @apply bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/80 dark:border-slate-700/80 max-w-2xl w-full p-6;
+}
+
+/* Enhanced color variants with gradients */
+.bg-primary-100 {
+  @apply bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-500/10 dark:to-blue-500/20;
+}
+
+.text-primary-600 {
+  @apply text-blue-600 dark:text-blue-400;
+}
+
+.bg-success-100 {
+  @apply bg-gradient-to-br from-green-50 to-green-100 dark:from-green-500/10 dark:to-green-500/20;
+}
+
+.text-success-600 {
+  @apply text-green-600 dark:text-green-400;
+}
+
+.bg-warning-100 {
+  @apply bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-500/10 dark:to-yellow-500/20;
+}
+
+.text-warning-600 {
+  @apply text-yellow-600 dark:text-yellow-400;
+}
+
+.bg-danger-100 {
+  @apply bg-gradient-to-br from-red-50 to-red-100 dark:from-red-500/10 dark:to-red-500/20;
+}
+
+.text-danger-600 {
+  @apply text-red-600 dark:text-red-400;
+}

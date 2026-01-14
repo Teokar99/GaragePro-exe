@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Export Demo - html2canvas + jsPDF</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+
+        .demo-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .demo-controls h1 {
+            margin: 0 0 20px 0;
+            color: #333;
+        }
+
+        .demo-controls button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        .demo-controls button:hover {
+            background: #005a87;
+        }
+
+        .demo-controls textarea {
+            width: 100%;
+            height: 100px;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+        }
+
+        .demo-controls label {
+            display: block;
+            margin: 10px 0 5px 0;
+            font-weight: bold;
+        }
+
+        /* PDF Styles */
+        .pdf-container {
+            font-family: Arial, sans-serif;
+            width: 794px;
+            min-height: 1123px;
+            padding: 20px;
+            background: #fff;
+            color: #333;
+            line-height: 1.6;
+            font-size: 14px;
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            z-index: -1;
+            left: 0;
+            top: 0;
+        }
+
+        .pdf-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+        }
+
+        .company-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+
+        .company-details {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .work-order-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #374151;
+            margin-top: 10px;
+        }
+
+        .date {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .pdf-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .pdf-section {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2563eb;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+        }
+
+        .field {
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .field-label {
+            display: inline-block;
+            width: 100px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .field-value {
+            color: #6b7280;
+        }
+
+        .services-section {
+            grid-column: 1 / -1;
+            margin-top: 15px;
+        }
+
+        .services-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 13px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .services-table th {
+            background: #2563eb;
+            color: white;
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 500;
+        }
+
+        .services-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .services-table tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        .services-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .totals-section {
+            grid-column: 1 / -1;
+            margin-top: 15px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .totals-box {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            min-width: 250px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .total-row.final {
+            border-top: 2px solid #2563eb;
+            padding-top: 8px;
+            margin-top: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e40af;
+        }
+
+        .notes-section {
+            grid-column: 1 / -1;
+            margin-top: 15px;
+        }
+
+        .notes-content {
+            background: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            min-height: 80px;
+            font-size: 13px;
+            white-space: pre-wrap;
+            margin-top: 8px;
+        }
+
+        .notes-placeholder {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            text-align: center;
+            color: #856404;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+
+        .pdf-footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 11px;
+            color: #9ca3af;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+        }
+
+        /* Page 2 styles */
+        .pdf-page-2 {
+            font-family: Arial, sans-serif;
+            width: 794px;
+            min-height: 1123px;
+            padding: 20px;
+            background: #fff;
+            color: #333;
+            line-height: 1.6;
+            font-size: 14px;
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            z-index: -1;
+            left: -9999px;
+            top: 0;
+            display: none;
+        }
+
+        .page-2-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 15px;
+        }
+
+        .page-2-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e40af;
+        }
+
+        .page-2-notes {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #2563eb;
+            font-size: 14px;
+            white-space: pre-wrap;
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-controls">
+        <h1>🚀 PDF Export Demo - html2canvas + jsPDF</h1>
+        <p>This demo shows how to generate PDFs with proper page logic using html2canvas + jsPDF.</p>
+        
+        <label for="notesInput">Παρατηρήσεις (Notes):</label>
+        <textarea id="notesInput" placeholder="Εισάγετε τις παρατηρήσεις εδώ...">Αυτό είναι ένα παράδειγμα σημειώσεων που θα εμφανιστεί στο PDF.
+
+Μπορείτε να προσθέσετε περισσότερο κείμενο εδώ για να δοκιμάσετε τη λογική σελιδοποίησης.
+
+Εάν το κείμενο είναι πολύ μεγάλο, θα δημιουργηθεί δεύτερη σελίδα αυτόματα.
+
+Αυτή είναι μια πολύ μεγάλη σημείωση που θα πρέπει να χωριστεί σε δεύτερη σελίδα γιατί δεν χωράει στην πρώτη σελίδα μαζί με όλα τα άλλα στοιχεία του εγγράφου.
+
+Περισσότερες γραμμές κειμένου...
+Ακόμη περισσότερες γραμμές...
+Και άλλες γραμμές για να γεμίσει η σελίδα...
+
+Τέλος των παρατηρήσεων.</textarea>
+        
+        <br><br>
+        <button onclick="generatePDF()">📄 Generate PDF</button>
+        <button onclick="testShortNotes()">📝 Test Short Notes (1 Page)</button>
+        <button onclick="testLongNotes()">📚 Test Long Notes (2 Pages)</button>
+    </div>
+
+    <!-- PDF Content Templates (Hidden) -->
+    <div id="pdf-page-1" class="pdf-container">
+        <div class="pdf-header">
+            <div class="company-name">Karabetsos I. Karabetsos L. O.E</div>
+            <div class="company-details">
+                Τηλ: 802705280 | Κιν: 2106611800 | Email: carabetsos@yahoo.com<br>
+                Διεύθυνση: Αγίας 15, Αθήνα, 15344
+            </div>
+            <div class="work-order-title">Εντολή Εργασίας</div>
+            <div class="date" id="current-date"></div>
+        </div>
+
+        <div class="pdf-content">
+            <div class="pdf-section">
+                <div class="section-title">Στοιχεία Πελάτη</div>
+                <div class="field"><span class="field-label">Όνομα:</span>
+                    <span class="field-value">Γιάννης Παπαδόπουλος</span></div>
+                <div class="field"><span class="field-label">Τηλέφωνο:</span>
+                    <span class="field-value">210-1234567</span></div>
+                <div class="field"><span class="field-label">Email:</span>
+                    <span class="field-value">giannis@example.com</span></div>
+                <div class="field"><span class="field-label">Διεύθυνση:</span>
+                    <span class="field-value">Πατησίων 123, Αθήνα</span></div>
+                <div class="field"><span class="field-label">ΑΦΜ:</span>
+                    <span class="field-value">123456789</span></div>
+            </div>
+
+            <div class="pdf-section">
+                <div class="section-title">Στοιχεία Οχήματος</div>
+                <div class="field"><span class="field-label">Μάρκα:</span>
+                    <span class="field-value">Toyota</span></div>
+                <div class="field"><span class="field-label">Μοντέλο:</span>
+                    <span class="field-value">Corolla</span></div>
+                <div class="field"><span class="field-label">Έτος:</span>
+                    <span class="field-value">2020</span></div>
+                <div class="field"><span class="field-label">Πινακίδα:</span>
+                    <span class="field-value">ΑΒΓ-1234</span></div>
+                <div class="field"><span class="field-label">VIN:</span>
+                    <span class="field-value">1HGBH41JXMN109186</span></div>
+                <div class="field"><span class="field-label">Χιλιόμετρα:</span>
+                    <span class="field-value">45,000</span></div>
+            </div>
+
+            <div class="pdf-section services-section">
+                <div class="section-title">Εργασίες</div>
+                <table class="services-table">
+                    <thead>
+                        <tr>
+                            <th>Α/Α</th>
+                            <th>Περιγραφή</th>
+                            <th style="text-align:center;">Ποσότητα</th>
+                            <th style="text-align:right;">Τιμή Μονάδας</th>
+                            <th style="text-align:right;">Σύνολο</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td>Αλλαγή λαδιών</td>
+                            <td style="text-align:center;">1</td>
+                            <td style="text-align:right;">45.00€</td>
+                            <td style="text-align:right;font-weight:600;">45.00€</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>Φίλτρο λαδιού</td>
+                            <td style="text-align:center;">1</td>
+                            <td style="text-align:right;">15.00€</td>
+                            <td style="text-align:right;font-weight:600;">15.00€</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>Έλεγχος φρένων</td>
+                            <td style="text-align:center;">1</td>
+                            <td style="text-align:right;">25.00€</td>
+                            <td style="text-align:right;font-weight:600;">25.00€</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="totals-section">
+                <div class="totals-box">
+                    <div class="total-row">
+                        <span>Υποσύνολο:</span>
+                        <span>85.00€</span>
+                    </div>
+                    <div class="total-row">
+                        <span>ΦΠΑ 24%:</span>
+                        <span>20.40€</span>
+                    </div>
+                    <div class="total-row final">
+                        <span>ΣΥΝΟΛΟ:</span>
+                        <span>105.40€</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pdf-section notes-section" id="notes-section">
+                <div class="section-title">Παρατηρήσεις</div>
+                <div class="notes-content" id="notes-content"></div>
+            </div>
+
+            <div class="pdf-section notes-section" id="notes-placeholder-section" style="display: none;">
+                <div class="section-title">Παρατηρήσεις</div>
+                <div class="notes-placeholder">
+                    Οι παρατηρήσεις συνεχίζονται στη 2η σελίδα →
+                </div>
+            </div>
+        </div>
+
+        <div class="pdf-footer">
+            <p>Αυτό το έγγραφο δημιουργήθηκε αυτόματα από το σύστημα διαχείρισης εργασιών.</p>
+            <p>Εντολή Εργασίας ID: WO-2024-001</p>
+            <p>Ημερομηνία Δημιουργίας: <span id="footer-date"></span></p>
+        </div>
+    </div>
+
+    <!-- Page 2 Template (Hidden) -->
+    <div id="pdf-page-2" class="pdf-page-2" style="display: none;">
+        <div class="page-2-header">
+            <div class="page-2-title">Εντολή Εργασίας - Παρατηρήσεις (Σελίδα 2)</div>
+            <div class="date" id="page-2-date"></div>
+        </div>
+
+        <div class="pdf-section">
+            <div class="section-title">Παρατηρήσεις (συνέχεια)</div>
+            <div class="page-2-notes" id="page-2-notes-content"></div>
+        </div>
+
+        <div class="pdf-footer">
+            <p>Εντολή Εργασίας ID: WO-2024-001 - Σελίδα 2</p>
+            <p>Ημερομηνία Δημιουργίας: <span id="page-2-footer-date"></span></p>
+        </div>
+    </div>
+
+    <script>
+        // Set current date
+        const currentDate = new Date().toLocaleDateString('el-GR');
+        document.getElementById('current-date').textContent = currentDate;
+        document.getElementById('footer-date').textContent = currentDate;
+        document.getElementById('page-2-date').textContent = currentDate;
+        document.getElementById('page-2-footer-date').textContent = currentDate;
+
+        function testShortNotes() {
+            document.getElementById('notesInput').value = "Αυτές είναι σύντομες παρατηρήσεις που χωράνε στην πρώτη σελίδα.";
+        }
+
+        function testLongNotes() {
+            document.getElementById('notesInput').value = `Αυτές είναι πολύ μεγάλες παρατηρήσεις που δεν θα χωρέσουν στην πρώτη σελίδα.
+
+Η εργασία που πραγματοποιήθηκε περιλαμβάνει:
+
+1. Πλήρη αλλαγή λαδιών με χρήση συνθετικού λαδιού υψηλής ποιότητας
+2. Αντικατάσταση φίλτρου λαδιού με γνήσιο ανταλλακτικό
+3. Έλεγχος όλων των υγρών του οχήματος
+4. Έλεγχος φρένων και δισκόπλακων
+5. Έλεγχος ελαστικών και πίεσης αέρα
+6. Έλεγχος μπαταρίας και συστήματος φόρτισης
+7. Έλεγχος φώτων και ηλεκτρικού συστήματος
+
+Παρατηρήσεις:
+- Τα φρένα είναι σε καλή κατάσταση
+- Η μπαταρία χρειάζεται αντικατάσταση σύντομα
+- Το δεξί μπροστινό ελαστικό έχει μικρή φθορά
+- Το σύστημα κλιματισμού λειτουργεί κανονικά
+
+Συστάσεις:
+- Επόμενο service σε 10,000 χιλιόμετρα ή 6 μήνες
+- Αντικατάσταση μπαταρίας εντός 2 μηνών
+- Έλεγχος ευθυγράμμισης τροχών
+
+Επιπλέον σημειώσεις:
+Ο πελάτης ενημερώθηκε για όλες τις εργασίες που πραγματοποιήθηκαν και τις συστάσεις μας. Το όχημα παραδόθηκε σε άριστη κατάσταση.
+
+Υπογραφή τεχνικού: Γιάννης Μηχανικός
+Ημερομηνία: ${currentDate}`;
+        }
+
+        async function generatePDF() {
+            const notesText = document.getElementById('notesInput').value;
+            
+            // Always show placeholder on page 1 (no notes)
+            document.getElementById('notes-section').style.display = 'none';
+            document.getElementById('notes-placeholder-section').style.display = 'block';
+            
+            // Put all notes on page 2
+            document.getElementById('page-2-notes-content').textContent = notesText;
+            
+            // Make page 2 visible for html2canvas capture
+            const page2Element = document.getElementById('pdf-page-2');
+            page2Element.style.display = 'block';
+            page2Element.style.position = 'absolute';
+            page2Element.style.left = '-9999px';
+            page2Element.style.top = '0';
+            page2Element.style.opacity = '1';
+            page2Element.style.pointerEvents = 'none';
+            page2Element.style.zIndex = '1';
+            
+            await generateTwoPagePDF();
+            
+            // Hide page 2 again after PDF generation
+            page2Element.style.display = 'none';
+            page2Element.style.opacity = '0';
+        }
+
+        function checkIfNotesNeedSecondPage(notesText) {
+            // Simple heuristic: if notes are longer than 300 characters or have more than 8 lines
+            const lineCount = notesText.split('\n').length;
+            const charCount = notesText.length;
+            
+            return charCount > 300 || lineCount > 8;
+        }
+
+        async function generateSinglePagePDF() {
+            console.log('Generating single page PDF...');
+            
+            const page1Element = document.getElementById('pdf-page-1');
+            
+            try {
+                // Wait for element to be ready
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Capture page 1
+                const canvas = await html2canvas(page1Element, {
+                    scale: 2,
+                    backgroundColor: "#ffffff",
+                    useCORS: true,
+                    allowTaint: false
+                });
+
+                const imgData = canvas.toDataURL("image/jpeg", 1.0);
+
+                // Create PDF
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF("p", "mm", "a4");
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+                pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+                pdf.save("work-order-single-page.pdf");
+                
+                console.log('Single page PDF generated successfully!');
+            } catch (error) {
+                console.error('Error generating single page PDF:', error);
+                alert('Error generating PDF: ' + error.message);
+            }
+        }
+
+        async function generateTwoPagePDF() {
+            console.log('Generating two page PDF...');
+            
+            const page1Element = document.getElementById('pdf-page-1');
+            const page2Element = document.getElementById('pdf-page-2');
+            
+            try {
+                // Wait for elements to be ready
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Capture page 1
+                const canvas1 = await html2canvas(page1Element, {
+                    scale: 2,
+                    backgroundColor: "#ffffff",
+                    useCORS: true,
+                    allowTaint: false
+                });
+
+                // Capture page 2
+                const canvas2 = await html2canvas(page2Element, {
+                    scale: 2,
+                    backgroundColor: "#ffffff",
+                    useCORS: true,
+                    allowTaint: false
+                });
+
+                const imgData1 = canvas1.toDataURL("image/jpeg", 1.0);
+                const imgData2 = canvas2.toDataURL("image/jpeg", 1.0);
+
+                // Create PDF
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF("p", "mm", "a4");
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                
+                // Add page 1
+                const pdfHeight1 = (canvas1.height * pdfWidth) / canvas1.width;
+                pdf.addImage(imgData1, "JPEG", 0, 0, pdfWidth, pdfHeight1);
+                
+                // Add page 2
+                pdf.addPage();
+                const pdfHeight2 = (canvas2.height * pdfWidth) / canvas2.width;
+                pdf.addImage(imgData2, "JPEG", 0, 0, pdfWidth, pdfHeight2);
+                
+                pdf.save("work-order-two-pages.pdf");
+                
+                console.log('Two page PDF generated successfully!');
+            } catch (error) {
+                console.error('Error generating two page PDF:', error);
+                alert('Error generating PDF: ' + error.message);
+            }
+        }
+
+        // Initialize with default notes
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Demo loaded successfully!');
+            console.log('html2canvas available:', typeof html2canvas !== 'undefined');
+            console.log('jsPDF available:', typeof window.jspdf !== 'undefined');
+        });
+    </script>
+</body>
+</html>
