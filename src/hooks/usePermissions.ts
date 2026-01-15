@@ -1,4 +1,4 @@
-import { useAuth } from './useAuth';
+import { useAuth } from "./useAuth";
 
 /**
  * Enum of user roles in the auto shop management system
@@ -6,7 +6,7 @@ import { useAuth } from './useAuth';
  * mechanic: Can view and work with services, customers, and vehicles
  * secretary: Can view data and manage customer information
  */
-export type UserRole = 'admin' | 'mechanic' | 'secretary';
+export type UserRole = "admin" | "mechanic" | "secretary";
 
 /**
  * Permissions Object
@@ -34,30 +34,35 @@ export interface Permissions {
  * - secretary: Can view, create, and edit services, customers, and vehicles (no financials or user management)
  */
 export function usePermissions(): Permissions {
-  const { userProfile } = useAuth();
-  const role = userProfile?.role as UserRole | null;
+  const { user } = useAuth();
+  const role = user?.role as UserRole | null;
 
   /**
    * Dashboard and core view permissions
    * All roles can view dashboard and customer/service data
    */
-  const canViewDashboard = role === 'admin' || role === 'mechanic' || role === 'secretary';
-  const canViewCustomers = role === 'admin' || role === 'mechanic' || role === 'secretary';
-  const canViewServices = role === 'admin' || role === 'mechanic' || role === 'secretary';
+  const canViewDashboard =
+    role === "admin" || role === "mechanic" || role === "secretary";
+  const canViewCustomers =
+    role === "admin" || role === "mechanic" || role === "secretary";
+  const canViewServices =
+    role === "admin" || role === "mechanic" || role === "secretary";
 
   /**
    * Admin-only permissions
    * Only admins can view financial data and manage users
    */
-  const canViewFinancials = role === 'admin';
-  const canManageUsers = role === 'admin';
+  const canViewFinancials = role === "admin";
+  const canManageUsers = role === "admin";
 
   /**
    * Edit permissions
    * Admins, mechanics, and secretaries can edit customers and services
    */
-  const canEditCustomers = role === 'admin' || role === 'mechanic' || role === 'secretary';
-  const canEditServices = role === 'admin' || role === 'mechanic' || role === 'secretary';
+  const canEditCustomers =
+    role === "admin" || role === "mechanic" || role === "secretary";
+  const canEditServices =
+    role === "admin" || role === "mechanic" || role === "secretary";
 
   return {
     canViewDashboard,

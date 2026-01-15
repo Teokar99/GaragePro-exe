@@ -1,7 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { DollarSign, Calendar, TrendingUp, ArrowUp, ArrowDown } from 'lucide-react';
-import { servicesRepository } from '../lib/repositories/servicesRepository';
-import { useAuth } from '../hooks/useAuth';
+import React, { useEffect, useState } from "react";
+import {
+  DollarSign,
+  Calendar,
+  TrendingUp,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
+import { servicesRepository } from "../lib/repositories/servicesRepository";
+import { useAuth } from "../hooks/useAuth";
 
 type RevenueStats = {
   current: {
@@ -22,7 +28,7 @@ type MonthlyRevenue = {
 };
 
 export const AdminRevenuePage: React.FC = () => {
-  const { userProfile } = useAuth();
+  const { user } = useAuth();
 
   const [stats, setStats] = useState<RevenueStats>({
     current: {
@@ -44,13 +50,13 @@ export const AdminRevenuePage: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
 
   useEffect(() => {
-    if (userProfile?.role === 'admin') {
+    if (user?.role === "admin") {
       loadRevenue();
     }
-  }, [userProfile]);
+  }, [user]);
 
   useEffect(() => {
-    if (userProfile?.role === 'admin') {
+    if (user?.role === "admin") {
       loadMonthlyRevenueForYear(selectedYear);
     }
   }, [selectedYear]);
@@ -59,15 +65,25 @@ export const AdminRevenuePage: React.FC = () => {
     try {
       setAnimateBars(false);
 
-      const result = await servicesRepository.listServices('', {}, 1, 10000);
+      const result = await servicesRepository.listServices("", {}, 1, 10000);
       const data = result.items;
 
       const monthlyMap: Record<number, number> = {
-        0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0,
-        6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0,
+        0: 0,
+        1: 0,
+        2: 0,
+        3: 0,
+        4: 0,
+        5: 0,
+        6: 0,
+        7: 0,
+        8: 0,
+        9: 0,
+        10: 0,
+        11: 0,
       };
 
-      data.forEach(record => {
+      data.forEach((record) => {
         const d = new Date(record.date);
         const amount = record.total || 0;
 
@@ -77,8 +93,18 @@ export const AdminRevenuePage: React.FC = () => {
       });
 
       const monthNames = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
       ];
 
       setMonthlyRevenue(
@@ -90,7 +116,7 @@ export const AdminRevenuePage: React.FC = () => {
 
       setTimeout(() => setAnimateBars(true), 0);
     } catch (err) {
-      console.error('Failed to load monthly revenue', err);
+      console.error("Failed to load monthly revenue", err);
     }
   };
 
@@ -99,7 +125,7 @@ export const AdminRevenuePage: React.FC = () => {
       setLoading(true);
       setAnimateBars(false);
 
-      const result = await servicesRepository.listServices('', {}, 1, 10000);
+      const result = await servicesRepository.listServices("", {}, 1, 10000);
       const data = result.items;
 
       const now = new Date();
@@ -128,11 +154,21 @@ export const AdminRevenuePage: React.FC = () => {
       let previousYearly = 0;
 
       const monthlyMap: Record<number, number> = {
-        0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0,
-        6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0,
+        0: 0,
+        1: 0,
+        2: 0,
+        3: 0,
+        4: 0,
+        5: 0,
+        6: 0,
+        7: 0,
+        8: 0,
+        9: 0,
+        10: 0,
+        11: 0,
       };
 
-      data.forEach(record => {
+      data.forEach((record) => {
         const d = new Date(record.date);
         const amount = record.total || 0;
 
@@ -142,9 +178,12 @@ export const AdminRevenuePage: React.FC = () => {
         if (d >= startOfCurrentYear) currentYearly += amount;
 
         // Previous period
-        if (d >= startOfPreviousWeek && d < startOfCurrentWeek) previousWeekly += amount;
-        if (d >= startOfPreviousMonth && d < startOfCurrentMonth) previousMonthly += amount;
-        if (d >= startOfPreviousYear && d < startOfCurrentYear) previousYearly += amount;
+        if (d >= startOfPreviousWeek && d < startOfCurrentWeek)
+          previousWeekly += amount;
+        if (d >= startOfPreviousMonth && d < startOfCurrentMonth)
+          previousMonthly += amount;
+        if (d >= startOfPreviousYear && d < startOfCurrentYear)
+          previousYearly += amount;
 
         // Monthly breakdown for current year
         if (d.getFullYear() === year) {
@@ -153,13 +192,31 @@ export const AdminRevenuePage: React.FC = () => {
       });
 
       setStats({
-        current: { weekly: currentWeekly, monthly: currentMonthly, yearly: currentYearly },
-        previous: { weekly: previousWeekly, monthly: previousMonthly, yearly: previousYearly },
+        current: {
+          weekly: currentWeekly,
+          monthly: currentMonthly,
+          yearly: currentYearly,
+        },
+        previous: {
+          weekly: previousWeekly,
+          monthly: previousMonthly,
+          yearly: previousYearly,
+        },
       });
 
       const monthNames = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
       ];
 
       setMonthlyRevenue(
@@ -169,7 +226,7 @@ export const AdminRevenuePage: React.FC = () => {
         }))
       );
     } catch (err) {
-      console.error('Failed to load revenue stats', err);
+      console.error("Failed to load revenue stats", err);
     } finally {
       setLoading(false);
 
@@ -177,7 +234,7 @@ export const AdminRevenuePage: React.FC = () => {
     }
   };
 
-  if (userProfile?.role !== 'admin') {
+  if (user?.role !== "admin") {
     return (
       <div className="text-center py-20 text-gray-500">
         🚫 You do not have access to this section
@@ -193,7 +250,7 @@ export const AdminRevenuePage: React.FC = () => {
     );
   }
 
-  const maxMonthly = Math.max(...monthlyRevenue.map(m => m.total), 1);
+  const maxMonthly = Math.max(...monthlyRevenue.map((m) => m.total), 1);
 
   return (
     <div className="space-y-8">
@@ -244,8 +301,10 @@ export const AdminRevenuePage: React.FC = () => {
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
               className="px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              {Array.from({ length: 31 }, (_, i) => 2020 + i).map(year => (
-                <option key={year} value={year}>{year}</option>
+              {Array.from({ length: 31 }, (_, i) => 2020 + i).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
               ))}
             </select>
             <select
@@ -253,8 +312,23 @@ export const AdminRevenuePage: React.FC = () => {
               onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
               className="px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, idx) => (
-                <option key={idx} value={idx}>{m}</option>
+              {[
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December",
+              ].map((m, idx) => (
+                <option key={idx} value={idx}>
+                  {m}
+                </option>
               ))}
             </select>
           </div>
@@ -267,9 +341,10 @@ export const AdminRevenuePage: React.FC = () => {
                 <div
                   className="w-8 bg-blue-500 dark:bg-blue-400 rounded-t-md transition-[height] duration-700 ease-out"
                   style={{
-                    height: animateBars && maxMonthly > 0
-                      ? `${Math.max((m.total / maxMonthly) * 100, 2)}%`
-                      : '0%',
+                    height:
+                      animateBars && maxMonthly > 0
+                        ? `${Math.max((m.total / maxMonthly) * 100, 2)}%`
+                        : "0%",
                     transitionDelay: `${index * 80}ms`,
                   }}
                   title={`€${m.total.toFixed(2)}`}
@@ -310,9 +385,7 @@ const RevenueCard = ({
           <div className="p-2 bg-gray-100 dark:bg-slate-700 rounded-lg">
             {icon}
           </div>
-          <h3 className="text-sm text-gray-600 dark:text-gray-400">
-            {title}
-          </h3>
+          <h3 className="text-sm text-gray-600 dark:text-gray-400">{title}</h3>
         </div>
       </div>
 
@@ -333,22 +406,30 @@ const RevenueCard = ({
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-gray-600 dark:text-gray-400 text-sm">Change:</span>
-          <div className={`flex items-center space-x-1 px-2 py-1 rounded ${
-            isPositive
-              ? 'bg-green-100 dark:bg-green-900/20'
-              : 'bg-red-100 dark:bg-red-900/20'
-          }`}>
+          <span className="text-gray-600 dark:text-gray-400 text-sm">
+            Change:
+          </span>
+          <div
+            className={`flex items-center space-x-1 px-2 py-1 rounded ${
+              isPositive
+                ? "bg-green-100 dark:bg-green-900/20"
+                : "bg-red-100 dark:bg-red-900/20"
+            }`}
+          >
             {isPositive ? (
-              <ArrowUp className={`w-4 h-4 text-green-600 dark:text-green-400`} />
+              <ArrowUp
+                className={`w-4 h-4 text-green-600 dark:text-green-400`}
+              />
             ) : (
               <ArrowDown className={`w-4 h-4 text-red-600 dark:text-red-400`} />
             )}
-            <span className={`text-sm font-medium ${
-              isPositive
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-red-600 dark:text-red-400'
-            }`}>
+            <span
+              className={`text-sm font-medium ${
+                isPositive
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-red-600 dark:text-red-400"
+              }`}
+            >
               {Math.abs(change).toFixed(1)}%
             </span>
           </div>

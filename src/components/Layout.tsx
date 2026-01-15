@@ -111,7 +111,7 @@ const Layout: React.FC<LayoutProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors overflow-x-hidden">
       {/* MOBILE SIDEBAR BACKDROP */}
       {sidebarOpen && (
         <div
@@ -233,10 +233,10 @@ const Layout: React.FC<LayoutProps> = ({
       {/* =============================== */}
       {/* MAIN CONTENT */}
       {/* =============================== */}
-      <div className="pl-0 lg:pl-64 transition-all">
+      <div className="relative min-h-screen w-full lg:ml-64 lg:w-[calc(100vw-16rem)]">
         {/* MOBILE TOP BAR */}
         <div className="sticky top-0 z-30 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-4 lg:hidden">
-          <div className="flex items-center justify-between">
+          <div className="flex justify-between items-center flex-wrap gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
               className="p-2 rounded-lg text-gray-500 hover:text-gray-300"
@@ -258,7 +258,7 @@ const Layout: React.FC<LayoutProps> = ({
         </div>
 
         {/* PAGE CONTENT */}
-        <main className="p-6">{children}</main>
+        <main className="p-6 w-full min-h-screen">{children}</main>
       </div>
     </div>
   );

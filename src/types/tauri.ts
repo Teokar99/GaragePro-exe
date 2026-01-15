@@ -90,7 +90,9 @@ export interface TauriDashboardStats {
 }
 
 export interface TauriPaginatedResult<T> {
-  data: T[];
+  items?: T[];
+  data?: T[];
+
   total: number;
   page: number;
   per_page: number;
