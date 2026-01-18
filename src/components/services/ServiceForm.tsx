@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
-import { X, Plus, Trash2, ChevronDown } from 'lucide-react';
-import { servicesRepository } from '../../lib/repositories/servicesRepository';
-import { customersRepository } from '../../lib/repositories/customersRepository';
-import { vehiclesRepository } from '../../lib/repositories/vehiclesRepository';
-import type { Vehicle } from '../../types';
-import { calculateSubtotal, calculateVAT, calculateTotal } from '../../lib/utils/calculations';
-import { logError, logInfo, getErrorMessage } from '../../utils/errorHandler';
-import { VehicleForm } from '../vehicles/VehicleForm';
+import React, { useState } from "react";
+import { X, Plus, Trash2, ChevronDown } from "lucide-react";
+import { servicesRepository } from "../../lib/repositories/servicesRepository";
+import { customersRepository } from "../../lib/repositories/customersRepository";
+import type { Customer } from "../../types";
+import type { ServiceRecord } from "../../types/service";
+import { vehiclesRepository } from "../../lib/repositories/vehiclesRepository";
+import type { Vehicle } from "../../types";
+import {
+  calculateSubtotal,
+  calculateVAT,
+  calculateTotal,
+} from "../../lib/utils/calculations";
+import { logError, logInfo, getErrorMessage } from "../../utils/errorHandler";
+import { VehicleForm } from "../vehicles/VehicleForm";
 
 interface ServiceLine {
   id: number;
@@ -14,11 +20,21 @@ interface ServiceLine {
   quantity: number;
   unit_price: number;
 }
-
+type ServiceFormEditingRecord = {
+  id: string;
+  vehicle_id: string;
+  date: string;
+  mileage: number;
+  notes?: string;
+  description?: string;
+  total?: number;
+  services?: { description: string; quantity: number; unit_price: number }[];
+};
 interface ServiceFormProps {
   vehicles: Vehicle[];
+  customers: Customer[]; // 👈 ΠΡΟΣΘΗΚΗ
+  editingRecord?: ServiceFormEditingRecord | null;
   selectedVehicle?: Vehicle | null;
-  editingRecord?: any;
   onClose: () => void;
   onSave: () => void;
 }
@@ -26,20 +42,23 @@ interface ServiceFormProps {
 export const ServiceForm: React.FC<ServiceFormProps> = ({
   vehicles,
   selectedVehicle,
+  customers,
   editingRecord,
   onClose,
-  onSave
+  onSave,
 }) => {
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [formData, setFormData] = useState({
-    vehicle_id: editingRecord?.vehicle_id || selectedVehicle?.id || '',
-    date: editingRecord?.date.split('T')[0] || new Date().toISOString().split('T')[0],
+    vehicle_id: editingRecord?.vehicle_id || selectedVehicle?.id || "",
+    date:
+      editingRecord?.date.split("T")[0] ||
+      new Date().toISOString().split("T")[0],
     mileage: editingRecord?.mileage || 0,
-    notes: editingRecord?.notes || '',
+    notes: editingRecord?.notes || "",
     services: [
       {
         id: Date.now(),
-        description: '',
+        description: "",
         quantity: 1,
         unit_price: 0,
       },
@@ -47,31 +66,20 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   });
   const [allCustomers, setAllCustomers] = useState<any[]>([]);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
-  const [vehicleSearchInput, setVehicleSearchInput] = useState('');
+  const [vehicleSearchInput, setVehicleSearchInput] = useState("");
   const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
-  const [customerSearchInput, setCustomerSearchInput] = useState('');
+  const [customerSearchInput, setCustomerSearchInput] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [customerVehicles, setCustomerVehicles] = useState<Vehicle[]>([]);
 
-  // Load all customers on component mount
+  // παίρνει customers από props
   React.useEffect(() => {
-    const loadAllCustomers = async () => {
-      try {
-        const result = await customersRepository.listCustomers('', 1, 10000);
-        const mappedCustomers = result.data.map((customer: any) => ({
-          id: customer.id,
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-        }));
-        setAllCustomers(mappedCustomers);
-      } catch (error) {
-        logError('Error loading customers', error);
-      }
-    };
-
-    loadAllCustomers();
-  }, []);
+    setAllCustomers(customers ?? []);
+  }, [customers]);
+  React.useEffect(() => {
+    console.log("ServiceForm customers prop:", customers?.length);
+    console.log("ServiceForm allCustomers:", allCustomers.length);
+  }, [customers, allCustomers]);
 
   // Fetch vehicles for the selected customer
   React.useEffect(() => {
@@ -82,87 +90,97 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       }
 
       try {
-        const vehicles = await vehiclesRepository.listVehiclesByCustomer(selectedCustomerId);
-        const mappedVehicles = vehicles.map((vehicle: any) => ({
-          id: vehicle.id,
-          customer_id: vehicle.customer_id,
-          make: vehicle.make,
-          model: vehicle.model,
-          year: vehicle.year,
-          license_plate: vehicle.license_plate,
-          vin: vehicle.vin,
-          customer: {
-            id: selectedCustomerId,
-            name: allCustomers.find(c => c.id === selectedCustomerId)?.name || '',
-          },
-        }));
+        const fetchedVehicles =
+          await vehiclesRepository.listVehiclesByCustomer(selectedCustomerId);
+
+        const mappedVehicles: Vehicle[] = fetchedVehicles.map(
+          (vehicle: any) => ({
+            id: vehicle.id,
+            customer_id: vehicle.customer_id,
+            make: vehicle.make,
+            model: vehicle.model,
+            year: vehicle.year,
+            license_plate: vehicle.license_plate,
+            vin: vehicle.vin,
+            created_at: vehicle.created_at ?? new Date().toISOString(),
+          }),
+        );
+
         setCustomerVehicles(mappedVehicles);
       } catch (error) {
-        logError('Error loading customer vehicles', error);
+        logError("Error loading customer vehicles", error);
         setCustomerVehicles([]);
       }
     };
 
     loadCustomerVehicles();
-  }, [selectedCustomerId, allCustomers]);
-
+  }, [selectedCustomerId]);
 
   // Filter customers by search input
-  const filteredCustomers = allCustomers.filter(customer => {
+  const filteredCustomers = allCustomers.filter((customer) => {
     const searchLower = customerSearchInput.toLowerCase();
-    const customerDisplay = `${customer.name} ${customer.phone || ''} ${customer.email || ''}`.toLowerCase();
+    const customerDisplay =
+      `${customer.name} ${customer.phone || ""} ${customer.email || ""}`.toLowerCase();
     return customerDisplay.includes(searchLower);
   });
 
   // Filter vehicles by search input
-  const filteredVehicles = customerVehicles.filter(vehicle => {
+  const filteredVehicles = customerVehicles.filter((vehicle) => {
     const searchLower = vehicleSearchInput.toLowerCase();
-    const vehicleDisplay = `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.license_plate || ''}`.toLowerCase();
+    const vehicleDisplay =
+      `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.license_plate || ""}`.toLowerCase();
     return vehicleDisplay.includes(searchLower);
   });
 
   // Initialize form data when editing
   React.useEffect(() => {
     if (editingRecord) {
-
       let editServices;
       if (editingRecord.services && Array.isArray(editingRecord.services)) {
         editServices = editingRecord.services.map((service, index) => ({
-            id: Date.now() + index,
-            description: service.description || '',
-            quantity: service.quantity || 1,
-            unit_price: service.unit_price || 0,
-          }));
+          id: Date.now() + index,
+          description: service.description || "",
+          quantity: service.quantity || 1,
+          unit_price: service.unit_price || 0,
+        }));
       } else {
-        editServices = [{
+        editServices = [
+          {
             id: Date.now(),
-            description: editingRecord.description || '',
+            description: editingRecord.description || "",
             quantity: 1,
             unit_price: 0,
-          }];
+          },
+        ];
       }
 
       setFormData({
         vehicle_id: editingRecord.vehicle_id,
-        date: editingRecord.date.split('T')[0],
+        date: editingRecord.date.split("T")[0],
         mileage: editingRecord.mileage || 0,
-        notes: editingRecord.notes || '',
+        notes: editingRecord.notes || "",
         services: editServices,
       });
 
       // Set the customer dropdown and vehicle search based on selected vehicle
-      const selectedVeh = vehicles.find(v => v.id === editingRecord.vehicle_id);
+      const selectedVeh = vehicles.find(
+        (v) => v.id === editingRecord.vehicle_id,
+      );
       if (selectedVeh) {
-        setSelectedCustomerId(selectedVeh.customer?.id || '');
-        const customerName = selectedVeh.customer?.name || '';
+        setSelectedCustomerId(selectedVeh.customer?.id || "");
+        const customerName = selectedVeh.customer?.name || "";
         setCustomerSearchInput(customerName);
-        setVehicleSearchInput(`${selectedVeh.year} ${selectedVeh.make} ${selectedVeh.model}${selectedVeh.license_plate ? ` - ${selectedVeh.license_plate}` : ''}`);
+        setVehicleSearchInput(
+          `${selectedVeh.year} ${selectedVeh.make} ${selectedVeh.model}${selectedVeh.license_plate ? ` - ${selectedVeh.license_plate}` : ""}`,
+        );
       }
     } else if (selectedVehicle) {
       // If a vehicle is pre-selected, set the customer dropdown
-      setSelectedCustomerId(selectedVehicle.customer?.id || '');
-      setCustomerSearchInput(selectedVehicle.customer?.name || '');
-      setVehicleSearchInput(`${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model}${selectedVehicle.license_plate ? ` - ${selectedVehicle.license_plate}` : ''}`);
+      setSelectedCustomerId(selectedVehicle.customer?.id || "");
+      setCustomerSearchInput(selectedVehicle.customer?.name || "");
+      setVehicleSearchInput(
+        `${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model}${selectedVehicle.license_plate ? ` - ${selectedVehicle.license_plate}` : ""}`,
+      );
     }
   }, [editingRecord, selectedVehicle, vehicles]);
 
@@ -170,28 +188,29 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('[data-vehicle-dropdown]')) {
+      if (!target.closest("[data-vehicle-dropdown]")) {
         setShowVehicleDropdown(false);
       }
-      if (!target.closest('[data-customer-dropdown]')) {
+      if (!target.closest("[data-customer-dropdown]")) {
         setShowCustomerDropdown(false);
       }
     };
 
     if (showVehicleDropdown || showCustomerDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showVehicleDropdown, showCustomerDropdown]);
 
   const addServiceLine = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       services: [
         ...prev.services,
         {
           id: Date.now(),
-          description: '',
+          description: "",
           quantity: 1,
           unit_price: 0,
         },
@@ -200,17 +219,17 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   };
 
   const removeServiceLine = (id: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      services: prev.services.filter(s => s.id !== id),
+      services: prev.services.filter((s) => s.id !== id),
     }));
   };
 
   const updateServiceLine = (id: number, field: string, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      services: prev.services.map(s =>
-        s.id === id ? { ...s, [field]: value } : s
+      services: prev.services.map((s) =>
+        s.id === id ? { ...s, [field]: value } : s,
       ),
     }));
   };
@@ -223,22 +242,22 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     e.preventDefault();
 
     if (!formData.vehicle_id || formData.services.length === 0) {
-      alert('Please select a vehicle and add at least one service line.');
+      alert("Please select a vehicle and add at least one service line.");
       return;
     }
 
     const hasDescription = formData.services.some(
-      (s) => s.description && s.description.trim() !== ''
+      (s) => s.description && s.description.trim() !== "",
     );
     if (!hasDescription) {
-      alert('Please add a description in at least one line.');
+      alert("Please add a description in at least one line.");
       return;
     }
 
     const summaryDescription = formData.services
       .map((s) => s.description?.trim())
       .filter(Boolean)
-      .join(' | ')
+      .join(" | ")
       .slice(0, 255);
 
     const payload = {
@@ -247,16 +266,16 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       date: formData.date,
       mileage: formData.mileage,
       notes: formData.notes,
-      description: summaryDescription || 'Service',
+      description: summaryDescription || "Service",
       services: formData.services.map(({ id, ...rest }) => ({
-        description: rest.description || 'Service',
+        description: rest.description || "Service",
         quantity: rest.quantity || 1,
         unit_price: rest.unit_price || 0,
-        total: (rest.quantity || 1) * (rest.unit_price || 0)
+        total: (rest.quantity || 1) * (rest.unit_price || 0),
       })),
       subtotal,
       vat,
-      total
+      total,
     };
 
     try {
@@ -270,17 +289,21 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       onClose();
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);
-      logError('Error adding service', error);
-      alert('Error adding service: ' + errorMessage);
+      logError("Error adding service", error);
+      alert("Error adding service: " + errorMessage);
     }
   };
+
+  function fetchVehicles() {
+    throw new Error("Function not implemented.");
+  }
 
   return (
     <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-75 dark:bg-opacity-70 flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-6xl w-full my-8 max-h-[90vh] flex flex-col">
         <div className="flex-shrink-0 flex justify-between items-center p-6 pb-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {editingRecord ? 'Edit Service' : 'New Service'}
+            {editingRecord ? "Edit Service" : "New Service"}
           </h3>
           <button
             onClick={onClose}
@@ -291,11 +314,12 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-6">
-
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Customer *
+                </label>
                 <div className="relative" data-customer-dropdown>
                   <div className="relative">
                     <input
@@ -323,8 +347,8 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                               onClick={() => {
                                 setSelectedCustomerId(customer.id);
                                 setCustomerSearchInput(customer.name);
-                                setFormData({ ...formData, vehicle_id: '' });
-                                setVehicleSearchInput('');
+                                setFormData({ ...formData, vehicle_id: "" });
+                                setVehicleSearchInput("");
                                 setShowCustomerDropdown(false);
                               }}
                               className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors border-b border-gray-100 last:border-b-0"
@@ -349,15 +373,23 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Vehicle *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Vehicle *
+                </label>
                 <div className="relative" data-vehicle-dropdown>
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder={!selectedCustomerId ? "🚫 Select customer first..." : "🔍 Search vehicle (year, make, model, plate)..."}
+                      placeholder={
+                        !selectedCustomerId
+                          ? "🚫 Select customer first..."
+                          : "🔍 Search vehicle (year, make, model, plate)..."
+                      }
                       value={vehicleSearchInput}
                       onChange={(e) => setVehicleSearchInput(e.target.value)}
-                      onFocus={() => selectedCustomerId && setShowVehicleDropdown(true)}
+                      onFocus={() =>
+                        selectedCustomerId && setShowVehicleDropdown(true)
+                      }
                       disabled={!selectedCustomerId}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
@@ -370,14 +402,23 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                       {filteredVehicles.length > 0 ? (
                         filteredVehicles
-                          .sort((a, b) => `${a.year} ${a.make} ${a.model}`.localeCompare(`${b.year} ${b.make} ${b.model}`))
+                          .sort((a, b) =>
+                            `${a.year} ${a.make} ${a.model}`.localeCompare(
+                              `${b.year} ${b.make} ${b.model}`,
+                            ),
+                          )
                           .map((vehicle) => (
                             <button
                               key={vehicle.id}
                               type="button"
                               onClick={() => {
-                                setFormData({ ...formData, vehicle_id: vehicle.id });
-                                setVehicleSearchInput(`${vehicle.year} ${vehicle.make} ${vehicle.model}${vehicle.license_plate ? ` - ${vehicle.license_plate}` : ''}`);
+                                setFormData({
+                                  ...formData,
+                                  vehicle_id: vehicle.id,
+                                });
+                                setVehicleSearchInput(
+                                  `${vehicle.year} ${vehicle.make} ${vehicle.model}${vehicle.license_plate ? ` - ${vehicle.license_plate}` : ""}`,
+                                );
                                 setShowVehicleDropdown(false);
                               }}
                               className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors border-b border-gray-100 last:border-b-0"
@@ -386,8 +427,10 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                                 🚙 {vehicle.year} {vehicle.make} {vehicle.model}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {vehicle.license_plate && `🏷️ ${vehicle.license_plate}`}
-                                {vehicle.vin && ` • VIN: ${vehicle.vin.substring(0, 8)}...`}
+                                {vehicle.license_plate &&
+                                  `🏷️ ${vehicle.license_plate}`}
+                                {vehicle.vin &&
+                                  ` • VIN: ${vehicle.vin.substring(0, 8)}...`}
                               </div>
                             </button>
                           ))
@@ -402,9 +445,14 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 {formData.vehicle_id && (
                   <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
                     <div className="text-sm text-green-800">
-                      <strong>Selected:</strong> {(() => {
-                        const vehicle = filteredVehicles.find(v => v.id === formData.vehicle_id);
-                        return vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}${vehicle.license_plate ? ` - ${vehicle.license_plate}` : ''}` : '';
+                      <strong>Selected:</strong>{" "}
+                      {(() => {
+                        const vehicle = filteredVehicles.find(
+                          (v) => v.id === formData.vehicle_id,
+                        );
+                        return vehicle
+                          ? `${vehicle.year} ${vehicle.make} ${vehicle.model}${vehicle.license_plate ? ` - ${vehicle.license_plate}` : ""}`
+                          : "";
                       })()}
                     </div>
                   </div>
@@ -412,18 +460,39 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 {selectedCustomerId && filteredVehicles.length > 0 && (
                   <div className="mt-2 flex items-center justify-between">
                     <p className="text-sm text-green-600 flex items-center">
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-4 h-4 mr-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
-                      {filteredVehicles.length} vehicle{filteredVehicles.length !== 1 ? 's' : ''} available
+                      {filteredVehicles.length} vehicle
+                      {filteredVehicles.length !== 1 ? "s" : ""} available
                     </p>
                     <button
                       type="button"
                       onClick={() => setShowVehicleForm(true)}
                       className="text-blue-600 hover:text-blue-800 underline font-medium text-sm flex items-center space-x-1"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
                       </svg>
                       <span>Add Another Vehicle</span>
                     </button>
@@ -431,16 +500,36 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 )}
                 {!selectedCustomerId && (
                   <p className="text-sm text-amber-600 mt-2 flex items-center">
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                      />
                     </svg>
                     Please select a customer first
                   </p>
                 )}
                 {selectedCustomerId && filteredVehicles.length === 0 && (
                   <p className="text-sm text-orange-600 mt-2 flex items-center">
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                      />
                     </svg>
                     This customer has no vehicles.
                     <button
@@ -457,42 +546,69 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Date *
+                </label>
                 <input
                   type="date"
                   required
                   value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, date: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Services</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Services
+              </label>
               <div className="border border-gray-300 rounded-lg overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-500 uppercase">A/A</th>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                      <th className="border border-gray-300 px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Qty</th>
-                      <th className="border border-gray-300 px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Price</th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
-                      <th className="border border-gray-300 px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-500 uppercase">
+                        A/A
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Description
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">
+                        Qty
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">
+                        Price
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Total
+                      </th>
+                      <th className="border border-gray-300 px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
                     {formData.services.map((service, index) => {
-                      const lineTotal = (service.quantity || 1) * (service.unit_price || 0);
+                      const lineTotal =
+                        (service.quantity || 1) * (service.unit_price || 0);
                       return (
                         <tr key={service.id} className="hover:bg-gray-50">
-                          <td className="border border-gray-300 px-2 py-2 text-center text-sm text-gray-900">{index + 1}</td>
+                          <td className="border border-gray-300 px-2 py-2 text-center text-sm text-gray-900">
+                            {index + 1}
+                          </td>
                           <td className="border border-gray-300 px-3 py-2">
                             <input
                               type="text"
                               value={service.description}
-                              onChange={(e) => updateServiceLine(service.id, 'description', e.target.value)}
+                              onChange={(e) =>
+                                updateServiceLine(
+                                  service.id,
+                                  "description",
+                                  e.target.value,
+                                )
+                              }
                               className="w-full px-2 py-1 text-sm border-0 focus:ring-0 bg-transparent"
                               placeholder="Service description..."
                             />
@@ -502,7 +618,13 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                               type="number"
                               min={1}
                               value={service.quantity}
-                              onChange={(e) => updateServiceLine(service.id, 'quantity', parseInt(e.target.value) || 1)}
+                              onChange={(e) =>
+                                updateServiceLine(
+                                  service.id,
+                                  "quantity",
+                                  parseInt(e.target.value) || 1,
+                                )
+                              }
                               className="w-full px-2 py-1 text-sm border-0 focus:ring-0 bg-transparent text-center"
                             />
                           </td>
@@ -512,15 +634,27 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                               min={0}
                               step="0.01"
                               value={service.unit_price}
-                              onChange={(e) => updateServiceLine(service.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                              onChange={(e) =>
+                                updateServiceLine(
+                                  service.id,
+                                  "unit_price",
+                                  parseFloat(e.target.value) || 0,
+                                )
+                              }
                               className="w-full px-2 py-1 text-sm border-0 focus:ring-0 bg-transparent text-right"
                               placeholder="0.00"
                             />
                           </td>
-                          <td className="border border-gray-300 px-3 py-2 text-right text-sm font-medium">{lineTotal.toFixed(2)}€</td>
+                          <td className="border border-gray-300 px-3 py-2 text-right text-sm font-medium">
+                            {lineTotal.toFixed(2)}€
+                          </td>
                           <td className="border border-gray-300 px-2 py-2 text-center">
                             {formData.services.length > 1 && (
-                              <button type="button" onClick={() => removeServiceLine(service.id)} className="text-red-600 hover:text-red-800 text-sm">
+                              <button
+                                type="button"
+                                onClick={() => removeServiceLine(service.id)}
+                                className="text-red-600 hover:text-red-800 text-sm"
+                              >
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             )}
@@ -561,26 +695,39 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mileage</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Mileage
+                </label>
                 <input
                   type="number"
                   min={0}
                   value={formData.mileage}
-                  onChange={(e) => setFormData({ ...formData, mileage: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      mileage: parseInt(e.target.value) || 0,
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notes</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Notes
+                </label>
                 <textarea
                   value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, notes: e.target.value })
+                  }
                   rows={3}
                   maxLength={500}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Additional notes..."
                 />
-                <div className="mt-1 text-xs text-gray-500 text-right">{formData.notes.length}/500 characters</div>
+                <div className="mt-1 text-xs text-gray-500 text-right">
+                  {formData.notes.length}/500 characters
+                </div>
               </div>
             </div>
 
@@ -596,7 +743,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 type="submit"
                 className="sm:flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                {editingRecord ? 'Update Service' : 'Add Service'}
+                {editingRecord ? "Update Service" : "Add Service"}
               </button>
             </div>
           </form>
@@ -607,7 +754,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
             <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Add New Vehicle</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Add New Vehicle
+                </h3>
                 <button
                   onClick={() => setShowVehicleForm(false)}
                   className="text-gray-400 hover:text-gray-600"

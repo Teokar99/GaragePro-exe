@@ -1,12 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Calendar, Car, User, Euro, CreditCard as Edit, Download, Trash2, X, Filter } from 'lucide-react';
-import { servicesRepository } from '../lib/repositories/servicesRepository';
-import { customersRepository } from '../lib/repositories/customersRepository';
-import { ServiceForm } from '../components/services/ServiceForm';
-import { exportWorkOrderPdf } from '../lib/pdf/exportWorkOrder';
-import type { Vehicle, Customer } from '../types';
-import { logError } from '../utils/errorHandler';
-import { usePermissions } from '../hooks/usePermissions';
+import React, { useState, useEffect } from "react";
+import {
+  Plus,
+  Search,
+  Calendar,
+  Car,
+  User,
+  Euro,
+  CreditCard as Edit,
+  Download,
+  Trash2,
+  X,
+  Filter,
+} from "lucide-react";
+import { servicesRepository } from "../lib/repositories/servicesRepository";
+import { vehiclesRepository } from "../lib/repositories/vehiclesRepository";
+import { customersRepository } from "../lib/repositories/customersRepository";
+import { ServiceForm } from "../components/services/ServiceForm";
+import { exportWorkOrderPdf } from "../lib/pdf/exportWorkOrder";
+import type { Vehicle, Customer } from "../types";
+import { logError } from "../utils/errorHandler";
+import { usePermissions } from "../hooks/usePermissions";
 
 interface ServiceRecord {
   id: string;
@@ -17,7 +30,19 @@ interface ServiceRecord {
   notes: string;
   total: number;
   match_field?: string | null;
-  vehicle?: Vehicle & { customer?: Customer };
+  vehicle?: {
+    id: string;
+    make: string;
+    model: string;
+    year: number;
+    license_plate?: string | null;
+    customer?: {
+      id: string;
+      name: string;
+      email?: string | null;
+      phone?: string | null;
+    };
+  };
 }
 
 export function ServicesPage() {
@@ -27,10 +52,12 @@ export function ServicesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<ServiceRecord | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchField, setSearchField] = useState('all');
-  const [filterBy, setFilterBy] = useState('all');
+  const [editingRecord, setEditingRecord] = useState<ServiceRecord | null>(
+    null,
+  );
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchField, setSearchField] = useState("all");
+  const [filterBy, setFilterBy] = useState("all");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(50);
@@ -42,7 +69,7 @@ export function ServicesPage() {
       try {
         await Promise.all([fetchServices(), fetchVehicles(), fetchCustomers()]);
       } catch (error) {
-        console.error('Error loading services data:', error);
+        console.error("Error loading services data:", error);
         setLoading(false);
       }
     };
@@ -67,45 +94,62 @@ export function ServicesPage() {
         searchTerm,
         {},
         currentPage,
-        recordsPerPage
+        recordsPerPage,
       );
 
-      setTotalRecords(result.total);
+      const data = Array.isArray((result as any)?.items)
+        ? (result as any).items
+        : [];
+      const total =
+        typeof (result as any)?.total === "number" ? (result as any).total : 0;
 
-      // Map TauriServiceRecordWithDetails to ServiceRecord type
-      const mappedServices = result.data.map((service: any) => ({
+      setTotalRecords(total);
+
+      const mappedServices: ServiceRecord[] = data.map((service: any) => ({
         id: service.id,
         vehicle_id: service.vehicle_id,
         date: service.date,
         description: service.description,
         mileage: service.mileage,
         notes: service.notes,
-        total: service.total,
-        vehicle: {
-          id: service.vehicle_id,
-          make: service.vehicle_make,
-          model: service.vehicle_model,
-          year: service.vehicle_year,
-          license_plate: service.vehicle_license_plate,
-          customer: {
-            id: service.customer_id,
-            name: service.customer_name,
-            email: service.customer_email,
-            phone: service.customer_phone,
-          },
-        },
+        total: service.total ?? 0,
+        vehicle: service.vehicle_id
+          ? {
+              id: service.vehicle_id,
+              make: service.vehicle_make,
+              model: service.vehicle_model,
+              year: service.vehicle_year,
+              license_plate: service.vehicle_license_plate,
+              customer: service.customer_id
+                ? {
+                    id: service.customer_id,
+                    name: service.customer_name,
+                    email: service.customer_email,
+                    phone: service.customer_phone,
+                  }
+                : undefined,
+            }
+          : undefined,
       }));
 
       setServices(mappedServices);
 
-      // Calculate total revenue from current page
-      const revenue = result.data.reduce((sum, service) => sum + service.total, 0);
+      const revenue = data.reduce(
+        (sum: number, service: any) => sum + (service.total ?? 0),
+        0,
+      );
       setTotalRevenue(revenue);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load service records';
-      console.error('Error fetching services:', err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load service records";
+
+      console.error("Error fetching services:", err);
       setError(errorMessage);
-      logError('Failed to load service records', err);
+      setServices([]); // ΠΟΤΕ undefined
+      setTotalRecords(0);
+      setTotalRevenue(0);
+
+      logError("Failed to load service records", err);
     } finally {
       setLoading(false);
     }
@@ -117,47 +161,81 @@ export function ServicesPage() {
       // No longer fetching all vehicles upfront
       setVehicles([]);
     } catch (error) {
-      console.error('Error fetching vehicles:', error);
+      console.error("Error fetching vehicles:", error);
     }
   };
 
   const fetchCustomers = async () => {
     try {
-      const result = await customersRepository.listCustomers('', 1, 10000);
-      const mappedCustomers = result.data.map((customer: any) => ({
+      const result = await customersRepository.listCustomers("", 1, 10000);
+
+      const items = Array.isArray((result as any)?.items)
+        ? (result as any).items
+        : [];
+
+      console.log("ServicesPage customers loaded:", items.length);
+
+      const mappedCustomers = items.map((customer: any) => ({
         id: customer.id,
         name: customer.name,
         email: customer.email,
         phone: customer.phone,
         address: customer.address,
-        user_id: '',
         created_at: customer.created_at,
+        user_id: "",
       }));
+
       setCustomers(mappedCustomers);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
+    } catch (err) {
+      console.error("Error fetching customers (ServicesPage):", err);
+      setCustomers([]);
     }
   };
 
   const handleExportPDF = async (service: ServiceRecord) => {
     try {
-      const customer = customers.find(c => c.id === service.vehicle?.customer?.id);
-      const vehicle = service.vehicle;
+      const customerId = service.vehicle?.customer?.id;
 
-      if (!customer || !vehicle) {
-        alert('Customer or vehicle information not found');
+      const customer = customers.find((c) => c.id === customerId);
+      if (!customerId || !customer) {
+        alert("Customer information not found");
         return;
       }
 
-      await exportWorkOrderPdf(customer, vehicle, service.id);
+      // Πάρε full vehicle από repository (μέσω customer)
+      // Πάρε full vehicle από repository (μέσω customer)
+      const customerVehicles =
+        await vehiclesRepository.listVehiclesByCustomer(customerId);
+
+      const found = customerVehicles.find(
+        (v: any) => v.id === service.vehicle_id,
+      );
+
+      if (!found) {
+        alert("Vehicle information not found");
+        return;
+      }
+
+      const normalizedVehicle: Vehicle = {
+        id: found.id ?? service.vehicle_id,
+        customer_id: found.customer_id ?? customerId,
+        make: found.make ?? "",
+        model: found.model ?? "",
+        year: found.year ?? 0,
+        license_plate: found.license_plate ?? "",
+        vin: found.vin ?? "",
+        created_at: found.created_at ?? new Date().toISOString(),
+      };
+
+      await exportWorkOrderPdf(customer, normalizedVehicle, service.id);
     } catch (error) {
-      logError('Error exporting PDF', error);
-      alert('Error exporting PDF');
+      logError("Error exporting PDF", error);
+      alert("Error exporting PDF");
     }
   };
 
   const handleDeleteService = async (serviceId: string) => {
-    if (!confirm('Are you sure you want to delete this service record?')) {
+    if (!confirm("Are you sure you want to delete this service record?")) {
       return;
     }
 
@@ -165,8 +243,8 @@ export function ServicesPage() {
       await servicesRepository.deleteService(serviceId);
       await fetchServices();
     } catch (error) {
-      logError('Error deleting service', error);
-      alert('Error deleting service record');
+      logError("Error deleting service", error);
+      alert("Error deleting service record");
     }
   };
 
@@ -186,7 +264,6 @@ export function ServicesPage() {
     handleCloseForm();
   };
 
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -202,13 +279,25 @@ export function ServicesPage() {
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
           <div className="flex items-start">
             <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              <svg
+                className="h-5 w-5 text-red-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
               </svg>
             </div>
             <div className="ml-3 flex-1">
-              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Error Loading Services</h3>
-              <p className="mt-1 text-sm text-red-700 dark:text-red-300">{error}</p>
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                Error Loading Services
+              </h3>
+              <p className="mt-1 text-sm text-red-700 dark:text-red-300">
+                {error}
+              </p>
               <button
                 onClick={() => {
                   setError(null);
@@ -225,12 +314,19 @@ export function ServicesPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Services</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage service records and work orders</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Services
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage service records and work orders
+          </p>
         </div>
         {permissions.canEditServices && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={async () => {
+              await fetchCustomers(); // φόρτωσε customers
+              setShowForm(true); // μετά άνοιξε modal
+            }}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
@@ -247,8 +343,12 @@ export function ServicesPage() {
               <Calendar className="w-6 h-6 text-blue-500" />
             </div>
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Services</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalRecords}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Total Services
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {totalRecords}
+              </p>
             </div>
           </div>
         </div>
@@ -259,9 +359,16 @@ export function ServicesPage() {
               <Car className="w-6 h-6 text-green-500" />
             </div>
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">This Month</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                This Month
+              </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {services.filter(s => new Date(s.date).getMonth() === new Date().getMonth()).length}
+                {
+                  services.filter(
+                    (s) =>
+                      new Date(s.date).getMonth() === new Date().getMonth(),
+                  ).length
+                }
               </p>
             </div>
           </div>
@@ -275,7 +382,9 @@ export function ServicesPage() {
                   <Euro className="w-6 h-6 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Total Revenue
+                  </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     €{totalRevenue.toFixed(2)}
                   </p>
@@ -289,9 +398,14 @@ export function ServicesPage() {
                   <User className="w-6 h-6 text-orange-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Avg per Service</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Avg per Service
+                  </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    €{totalRecords > 0 ? (totalRevenue / totalRecords).toFixed(2) : '0.00'}
+                    €
+                    {totalRecords > 0
+                      ? (totalRevenue / totalRecords).toFixed(2)
+                      : "0.00"}
                   </p>
                 </div>
               </div>
@@ -309,11 +423,15 @@ export function ServicesPage() {
               <input
                 type="text"
                 placeholder={
-                  searchField === 'customer' ? 'Search by customer name...' :
-                  searchField === 'vehicle' ? 'Search by vehicle make/model...' :
-                  searchField === 'license_plate' ? 'Search by license plate...' :
-                  searchField === 'description' ? 'Search by description/notes...' :
-                  'Search by customer, vehicle, license plate, or description...'
+                  searchField === "customer"
+                    ? "Search by customer name..."
+                    : searchField === "vehicle"
+                      ? "Search by vehicle make/model..."
+                      : searchField === "license_plate"
+                        ? "Search by license plate..."
+                        : searchField === "description"
+                          ? "Search by description/notes..."
+                          : "Search by customer, vehicle, license plate, or description..."
                 }
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -321,7 +439,7 @@ export function ServicesPage() {
               />
               {searchTerm && (
                 <button
-                  onClick={() => setSearchTerm('')}
+                  onClick={() => setSearchTerm("")}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                   title="Clear search"
                 >
@@ -359,14 +477,25 @@ export function ServicesPage() {
             <div className="flex items-center justify-between text-sm">
               <div className="text-gray-600 dark:text-gray-400">
                 <Filter className="w-4 h-4 inline mr-2" />
-                Found <span className="font-semibold text-gray-900 dark:text-white">{totalRecords}</span> {totalRecords === 1 ? 'record' : 'records'} matching "{searchTerm}"
-                {searchField !== 'all' && (
-                  <span className="ml-1">in <span className="font-semibold">{
-                    searchField === 'customer' ? 'customer names' :
-                    searchField === 'vehicle' ? 'vehicles' :
-                    searchField === 'license_plate' ? 'license plates' :
-                    'descriptions'
-                  }</span></span>
+                Found{" "}
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {totalRecords}
+                </span>{" "}
+                {totalRecords === 1 ? "record" : "records"} matching "
+                {searchTerm}"
+                {searchField !== "all" && (
+                  <span className="ml-1">
+                    in{" "}
+                    <span className="font-semibold">
+                      {searchField === "customer"
+                        ? "customer names"
+                        : searchField === "vehicle"
+                          ? "vehicles"
+                          : searchField === "license_plate"
+                            ? "license plates"
+                            : "descriptions"}
+                    </span>
+                  </span>
                 )}
               </div>
             </div>
@@ -380,29 +509,45 @@ export function ServicesPage() {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-slate-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Vehicle</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Vehicle
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Customer
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Description
+                </th>
                 {permissions.canViewFinancials && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Total
+                  </th>
                 )}
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
               {services.map((service) => (
-                <tr key={service.id} className="hover:bg-gray-50 dark:hover:bg-slate-700">
+                <tr
+                  key={service.id}
+                  className="hover:bg-gray-50 dark:hover:bg-slate-700"
+                >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                     <div className="flex items-center gap-2">
                       <span>{new Date(service.date).toLocaleDateString()}</span>
                       {searchTerm && service.match_field && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                          {service.match_field === 'customer' && 'Customer'}
-                          {service.match_field === 'vehicle' && 'Vehicle'}
-                          {service.match_field === 'license_plate' && 'Plate'}
-                          {service.match_field === 'description' && 'Description'}
-                          {service.match_field === 'notes' && 'Notes'}
+                          {service.match_field === "customer" && "Customer"}
+                          {service.match_field === "vehicle" && "Vehicle"}
+                          {service.match_field === "license_plate" && "Plate"}
+                          {service.match_field === "description" &&
+                            "Description"}
+                          {service.match_field === "notes" && "Notes"}
                         </span>
                       )}
                     </div>
@@ -411,7 +556,8 @@ export function ServicesPage() {
                     {service.vehicle ? (
                       <div>
                         <div className="font-medium">
-                          {service.vehicle.year} {service.vehicle.make} {service.vehicle.model}
+                          {service.vehicle.year} {service.vehicle.make}{" "}
+                          {service.vehicle.model}
                         </div>
                         {service.vehicle.license_plate && (
                           <div className="text-gray-500 dark:text-gray-400">
@@ -420,20 +566,25 @@ export function ServicesPage() {
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-500 dark:text-gray-400">Unknown Vehicle</span>
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Unknown Vehicle
+                      </span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {service.vehicle?.customer?.name || 'Unknown Customer'}
+                    {service.vehicle?.customer?.name || "Unknown Customer"}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                    <div className="max-w-xs truncate" title={service.description}>
+                    <div
+                      className="max-w-xs truncate"
+                      title={service.description}
+                    >
                       {service.description}
                     </div>
                   </td>
                   {permissions.canViewFinancials && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      €{service.total?.toFixed(2) || '0.00'}
+                      €{service.total?.toFixed(2) || "0.00"}
                     </td>
                   )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -474,9 +625,13 @@ export function ServicesPage() {
         {services.length === 0 && (
           <div className="text-center py-12">
             <Calendar className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No services found</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+              No services found
+            </h3>
             <p className="mt-1 text-gray-500 dark:text-gray-400">
-              {searchTerm || filterBy !== 'all' ? 'Try adjusting your search or filters.' : 'Get started by creating a new service record.'}
+              {searchTerm || filterBy !== "all"
+                ? "Try adjusting your search or filters."
+                : "Get started by creating a new service record."}
             </p>
           </div>
         )}
@@ -488,7 +643,9 @@ export function ServicesPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Records per page selector */}
             <div className="flex items-center space-x-2">
-              <label className="text-sm text-gray-600 dark:text-gray-400">Records per page:</label>
+              <label className="text-sm text-gray-600 dark:text-gray-400">
+                Records per page:
+              </label>
               <select
                 value={recordsPerPage}
                 onChange={(e) => {
@@ -507,7 +664,9 @@ export function ServicesPage() {
 
             {/* Page info */}
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {((currentPage - 1) * recordsPerPage) + 1} to {Math.min(currentPage * recordsPerPage, totalRecords)} of {totalRecords} records
+              Showing {(currentPage - 1) * recordsPerPage + 1} to{" "}
+              {Math.min(currentPage * recordsPerPage, totalRecords)} of{" "}
+              {totalRecords} records
             </div>
 
             {/* Page navigation */}
@@ -520,7 +679,7 @@ export function ServicesPage() {
                 First
               </button>
               <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
                 className="px-3 py-1 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-slate-600"
               >
@@ -529,46 +688,67 @@ export function ServicesPage() {
 
               {/* Page numbers */}
               <div className="flex items-center space-x-1">
-                {Array.from({ length: Math.min(5, Math.ceil(totalRecords / recordsPerPage)) }, (_, i) => {
-                  const totalPages = Math.ceil(totalRecords / recordsPerPage);
-                  let pageNum;
+                {Array.from(
+                  {
+                    length: Math.min(
+                      5,
+                      Math.ceil(totalRecords / recordsPerPage),
+                    ),
+                  },
+                  (_, i) => {
+                    const totalPages = Math.ceil(totalRecords / recordsPerPage);
+                    let pageNum;
 
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
 
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-1 border rounded-lg ${
-                        currentPage === pageNum
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-slate-600'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-1 border rounded-lg ${
+                          currentPage === pageNum
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-slate-600"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  },
+                )}
               </div>
 
               <button
-                onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalRecords / recordsPerPage), prev + 1))}
-                disabled={currentPage >= Math.ceil(totalRecords / recordsPerPage)}
+                onClick={() =>
+                  setCurrentPage((prev) =>
+                    Math.min(
+                      Math.ceil(totalRecords / recordsPerPage),
+                      prev + 1,
+                    ),
+                  )
+                }
+                disabled={
+                  currentPage >= Math.ceil(totalRecords / recordsPerPage)
+                }
                 className="px-3 py-1 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-slate-600"
               >
                 Next
               </button>
               <button
-                onClick={() => setCurrentPage(Math.ceil(totalRecords / recordsPerPage))}
-                disabled={currentPage >= Math.ceil(totalRecords / recordsPerPage)}
+                onClick={() =>
+                  setCurrentPage(Math.ceil(totalRecords / recordsPerPage))
+                }
+                disabled={
+                  currentPage >= Math.ceil(totalRecords / recordsPerPage)
+                }
                 className="px-3 py-1 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-slate-600"
               >
                 Last
@@ -582,6 +762,7 @@ export function ServicesPage() {
       {showForm && (
         <ServiceForm
           vehicles={vehicles}
+          customers={customers}
           editingRecord={editingRecord}
           onClose={handleCloseForm}
           onSave={handleSave}
