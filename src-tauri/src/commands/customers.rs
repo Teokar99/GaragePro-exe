@@ -9,6 +9,10 @@ pub fn list_customers(
 ) -> Result<PaginatedResult<CustomerWithVehicleCount>, String> {
     customers::list_customers(search, page, per_page).map_err(|e| e.to_string())
 }
+#[tauri::command]
+pub fn list_all_customers() -> Result<Vec<Customer>, String> {
+    customers::list_all_customers().map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub fn create_customer(
@@ -19,6 +23,13 @@ pub fn create_customer(
     afm: Option<String>,
 ) -> Result<Customer, String> {
     customers::create_customer(name, email, phone, address, afm).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_all_customers_with_vehicle_count(
+) -> Result<Vec<CustomerWithVehicleCount>, String> {
+    customers::list_all_customers_with_vehicle_count()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

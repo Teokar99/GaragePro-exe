@@ -1,5 +1,5 @@
 use crate::db::{generate_uuid, get_connection};
-use crate::models::{Customer, CustomerWithVehicleCount, CustomerWithVehicles, PaginatedResult, Vehicle};
+use crate::models::{Customer, CustomerWithVehicleCount, CustomerWithVehicles, PaginatedResult, Vehicle,};
 use chrono::Utc;
 use rusqlite::Result;
 
@@ -96,6 +96,71 @@ pub fn list_customers(
         total_pages,
     })
 }
+
+pub fn list_all_customers() -> rusqlite::Result<Vec<Customer>> {
+    let conn = get_connection()?;
+
+    let mut stmt = conn.prepare(
+        "SELECT id, name, email, phone, address, afm, created_at, updated_at
+         FROM customers
+         ORDER BY name ASC",
+    )?;
+
+    let rows = stmt.query_map([], |row| {
+        Ok(Customer {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            email: row.get(2)?,
+            phone: row.get(3)?,
+            address: row.get(4)?,
+            afm: row.get(5)?,
+            created_at: row.get(6)?,
+            updated_at: row.get(7)?,
+        })
+    })?;
+
+    rows.collect::<rusqlite::Result<Vec<_>>>()
+}
+pub fn list_all_customers_with_vehicle_count(
+) -> rusqlite::Result<Vec<CustomerWithVehicleCount>> {
+    let conn = get_connection()?;
+
+    let mut stmt = conn.prepare(
+        "
+        SELECT 
+          c.id,
+          c.name,
+          c.email,
+          c.phone,
+          c.address,
+          c.afm,
+          c.created_at,
+          c.updated_at,
+          COUNT(v.id) as vehicle_count
+        FROM customers c
+        LEFT JOIN vehicles v ON v.customer_id = c.id
+        GROUP BY c.id
+        ORDER BY c.name ASC
+        ",
+    )?;
+
+    let rows = stmt.query_map([], |row| {
+        Ok(CustomerWithVehicleCount {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            email: row.get(2)?,
+            phone: row.get(3)?,
+            address: row.get(4)?,
+            afm: row.get(5)?,
+            created_at: row.get(6)?,
+            updated_at: row.get(7)?,
+            vehicle_count: row.get(8)?,
+        })
+    })?;
+
+    rows.collect::<rusqlite::Result<Vec<_>>>()
+}
+
 
 pub fn create_customer(
     name: String,

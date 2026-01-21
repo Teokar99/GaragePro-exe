@@ -3,7 +3,6 @@ import { X, Plus, Trash2, ChevronDown } from "lucide-react";
 import { servicesRepository } from "../../lib/repositories/servicesRepository";
 import { customersRepository } from "../../lib/repositories/customersRepository";
 import type { Customer } from "../../types";
-import type { ServiceRecord } from "../../types/service";
 import { vehiclesRepository } from "../../lib/repositories/vehiclesRepository";
 import type { Vehicle } from "../../types";
 import {
@@ -13,6 +12,7 @@ import {
 } from "../../lib/utils/calculations";
 import { logError, logInfo, getErrorMessage } from "../../utils/errorHandler";
 import { VehicleForm } from "../vehicles/VehicleForm";
+import { invoke } from "@tauri-apps/api/tauri";
 
 interface ServiceLine {
   id: number;
@@ -37,6 +37,7 @@ interface ServiceFormProps {
   selectedVehicle?: Vehicle | null;
   onClose: () => void;
   onSave: () => void;
+  onVehiclesChanged: (customerId: string) => Promise<void> | void;
 }
 
 export const ServiceForm: React.FC<ServiceFormProps> = ({
@@ -44,6 +45,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   selectedVehicle,
   customers,
   editingRecord,
+  onVehiclesChanged,
   onClose,
   onSave,
 }) => {
@@ -134,55 +136,51 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
 
   // Initialize form data when editing
   React.useEffect(() => {
-    if (editingRecord) {
-      let editServices;
-      if (editingRecord.services && Array.isArray(editingRecord.services)) {
-        editServices = editingRecord.services.map((service, index) => ({
-          id: Date.now() + index,
-          description: service.description || "",
-          quantity: service.quantity || 1,
-          unit_price: service.unit_price || 0,
-        }));
-      } else {
-        editServices = [
-          {
-            id: Date.now(),
-            description: editingRecord.description || "",
-            quantity: 1,
-            unit_price: 0,
-          },
-        ];
-      }
+    if (!editingRecord) return;
+    console.log(
+      "EDIT SERVICES DEBUG:",
+      typeof editingRecord.services,
+      editingRecord.services,
+    );
+    let editServices: ServiceLine[] = [];
 
-      setFormData({
-        vehicle_id: editingRecord.vehicle_id,
-        date: editingRecord.date.split("T")[0],
-        mileage: editingRecord.mileage || 0,
-        notes: editingRecord.notes || "",
-        services: editServices,
-      });
-
-      // Set the customer dropdown and vehicle search based on selected vehicle
-      const selectedVeh = vehicles.find(
-        (v) => v.id === editingRecord.vehicle_id,
-      );
-      if (selectedVeh) {
-        setSelectedCustomerId(selectedVeh.customer?.id || "");
-        const customerName = selectedVeh.customer?.name || "";
-        setCustomerSearchInput(customerName);
-        setVehicleSearchInput(
-          `${selectedVeh.year} ${selectedVeh.make} ${selectedVeh.model}${selectedVeh.license_plate ? ` - ${selectedVeh.license_plate}` : ""}`,
-        );
+    if (Array.isArray(editingRecord.services)) {
+      editServices = editingRecord.services.map((s: any, index: number) => ({
+        id: s.id ?? Date.now() + index,
+        description: s.description ?? "",
+        quantity: Number(s.quantity ?? 1),
+        unit_price: Number(s.unit_price ?? 0),
+      }));
+    } else if (typeof (editingRecord as any).services === "string") {
+      try {
+        const parsed = JSON.parse((editingRecord as any).services);
+        if (Array.isArray(parsed)) {
+          editServices = parsed.map((s: any, index: number) => ({
+            id: s.id ?? Date.now() + index,
+            description: s.description ?? "",
+            quantity: Number(s.quantity ?? 1),
+            unit_price: Number(s.unit_price ?? 0),
+          }));
+        }
+      } catch {
+        editServices = [];
       }
-    } else if (selectedVehicle) {
-      // If a vehicle is pre-selected, set the customer dropdown
-      setSelectedCustomerId(selectedVehicle.customer?.id || "");
-      setCustomerSearchInput(selectedVehicle.customer?.name || "");
-      setVehicleSearchInput(
-        `${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model}${selectedVehicle.license_plate ? ` - ${selectedVehicle.license_plate}` : ""}`,
-      );
     }
-  }, [editingRecord, selectedVehicle, vehicles]);
+
+    if (editServices.length === 0) {
+      editServices = [
+        { id: Date.now(), description: "", quantity: 1, unit_price: 0 },
+      ];
+    }
+
+    setFormData({
+      vehicle_id: editingRecord.vehicle_id ?? "",
+      date: (editingRecord.date ?? new Date().toISOString()).split("T")[0],
+      mileage: editingRecord.mileage ?? 0,
+      notes: editingRecord.notes ?? "",
+      services: editServices,
+    });
+  }, [editingRecord]);
 
   // Close dropdown when clicking outside
   React.useEffect(() => {
@@ -234,9 +232,16 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     }));
   };
 
-  const subtotal = calculateSubtotal(formData.services);
-  const vat = calculateVAT(subtotal);
-  const total = calculateTotal(subtotal, vat);
+  const subtotal = React.useMemo(() => {
+    return formData.services.reduce((sum, line) => {
+      const qty = Number(line.quantity) || 0;
+      const price = Number(line.unit_price) || 0;
+      return sum + qty * price;
+    }, 0);
+  }, [formData.services]);
+
+  const vat = React.useMemo(() => subtotal * 0.24, [subtotal]);
+  const total = React.useMemo(() => subtotal + vat, [subtotal, vat]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,10 +298,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       alert("Error adding service: " + errorMessage);
     }
   };
-
-  function fetchVehicles() {
-    throw new Error("Function not implemented.");
-  }
 
   return (
     <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-75 dark:bg-opacity-70 flex items-center justify-center p-4 z-50 overflow-y-auto">
@@ -769,8 +770,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 onClose={() => setShowVehicleForm(false)}
                 onSave={async () => {
                   setShowVehicleForm(false);
-                  // Refresh vehicles list
-                  await fetchVehicles();
+                  await onVehiclesChanged(selectedCustomerId); // ✅ refresh vehicles
                 }}
               />
             </div>

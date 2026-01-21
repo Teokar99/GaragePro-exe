@@ -63,6 +63,17 @@ export function ServicesPage() {
   const [recordsPerPage, setRecordsPerPage] = useState(50);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const handleSaveService = async () => {
+    setShowForm(false);
+    setEditingRecord(null);
+
+    await fetchServices(); // ✅ refresh list immediately
+  };
+
+  const handleVehiclesChanged = async (customerId: string) => {
+    const items = await vehiclesRepository.listVehiclesByCustomer(customerId);
+    setVehicles(items);
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -100,37 +111,126 @@ export function ServicesPage() {
       const data = Array.isArray((result as any)?.items)
         ? (result as any).items
         : [];
+      console.log("SERVICE SAMPLE:", data[0]);
       const total =
         typeof (result as any)?.total === "number" ? (result as any).total : 0;
 
       setTotalRecords(total);
 
-      const mappedServices: ServiceRecord[] = data.map((service: any) => ({
-        id: service.id,
-        vehicle_id: service.vehicle_id,
-        date: service.date,
-        description: service.description,
-        mileage: service.mileage,
-        notes: service.notes,
-        total: service.total ?? 0,
-        vehicle: service.vehicle_id
-          ? {
-              id: service.vehicle_id,
-              make: service.vehicle_make,
-              model: service.vehicle_model,
-              year: service.vehicle_year,
-              license_plate: service.vehicle_license_plate,
-              customer: service.customer_id
-                ? {
-                    id: service.customer_id,
-                    name: service.customer_name,
-                    email: service.customer_email,
-                    phone: service.customer_phone,
-                  }
-                : undefined,
+      const parseServiceLines = (service: any) => {
+        // 1) αν έρχεται ήδη array
+        if (Array.isArray(service.services)) return service.services;
+
+        // 2) αν έρχεται JSON string
+        const raw =
+          typeof service.services_json === "string"
+            ? service.services_json
+            : typeof service.servicesJson === "string"
+              ? service.servicesJson
+              : typeof service.services === "string"
+                ? service.services
+                : null;
+
+        if (!raw) return [];
+
+        try {
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      };
+
+      const mappedServices: ServiceRecord[] = data.map((service: any) => {
+        const parseLines = (service: any) => {
+          // δοκίμασε σε σειρά πιθανών πεδίων
+          const candidates = [
+            service.services_json,
+            service.servicesJson,
+            service.services,
+            service.services_json_text,
+            service.services_json_string,
+          ];
+
+          const raw = candidates.find((x) => x !== undefined && x !== null);
+
+          if (!raw) return [];
+
+          if (Array.isArray(raw)) return raw;
+
+          if (typeof raw === "string") {
+            try {
+              const parsed = JSON.parse(raw);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
             }
-          : undefined,
-      }));
+          }
+
+          return [];
+        };
+
+        const linesRaw = parseServiceLines(service);
+
+        if (linesRaw.length === 0) {
+          console.log("NO LINES FOR SERVICE:", service.id, service);
+        }
+
+        const servicesLines = linesRaw.map((l: any, idx: number) => ({
+          id: l.id ?? Date.now() + idx,
+          description: l.description ?? "",
+          quantity: Number(l.quantity ?? 1),
+          unit_price: Number(l.unit_price ?? 0),
+        }));
+
+        const subtotal =
+          typeof service.subtotal === "number"
+            ? service.subtotal
+            : servicesLines.reduce(
+                (sum: number, l: any) =>
+                  sum + (Number(l.quantity) || 0) * (Number(l.unit_price) || 0),
+                0,
+              );
+
+        const vat =
+          typeof service.vat === "number" ? service.vat : subtotal * 0.24;
+
+        const total =
+          typeof service.total === "number" ? service.total : subtotal + vat;
+
+        return {
+          id: service.id,
+          vehicle_id: service.vehicle_id,
+          date: service.date,
+          description: service.description,
+          mileage: service.mileage,
+          notes: service.notes,
+
+          // ✅ ΝΕΑ: για να δουλέψει σωστά το Edit modal
+          services: servicesLines,
+          subtotal,
+          vat,
+          total,
+
+          vehicle: service.vehicle_id
+            ? {
+                id: service.vehicle_id,
+                make: service.vehicle_make,
+                model: service.vehicle_model,
+                year: service.vehicle_year,
+                license_plate: service.vehicle_license_plate,
+                customer: service.customer_id
+                  ? {
+                      id: service.customer_id,
+                      name: service.customer_name,
+                      email: service.customer_email,
+                      phone: service.customer_phone,
+                    }
+                  : undefined,
+              }
+            : undefined,
+        };
+      });
 
       setServices(mappedServices);
 
@@ -155,14 +255,9 @@ export function ServicesPage() {
     }
   };
 
-  const fetchVehicles = async () => {
-    try {
-      // Vehicles are fetched within the service form as needed
-      // No longer fetching all vehicles upfront
-      setVehicles([]);
-    } catch (error) {
-      console.error("Error fetching vehicles:", error);
-    }
+  const fetchVehicles = async (): Promise<void> => {
+    // intentionally empty – vehicles loaded dynamically
+    return;
   };
 
   const fetchCustomers = async () => {
@@ -325,7 +420,8 @@ export function ServicesPage() {
           <button
             onClick={async () => {
               await fetchCustomers(); // φόρτωσε customers
-              setShowForm(true); // μετά άνοιξε modal
+              setEditingRecord(null); // ✅ καθάρισε edit mode
+              setShowForm(true); // άνοιξε modal
             }}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -761,11 +857,13 @@ export function ServicesPage() {
       {/* Service Form Modal */}
       {showForm && (
         <ServiceForm
+          key={editingRecord ? editingRecord.id : "new"}
           vehicles={vehicles}
           customers={customers}
           editingRecord={editingRecord}
-          onClose={handleCloseForm}
-          onSave={handleSave}
+          onClose={() => setShowForm(false)}
+          onSave={handleSaveService}
+          onVehiclesChanged={handleVehiclesChanged}
         />
       )}
     </div>

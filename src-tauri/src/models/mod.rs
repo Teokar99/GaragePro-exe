@@ -77,9 +77,23 @@ pub struct CustomerWithVehicles {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceItem {
+    // ✅ να δέχεται id από seed (και αν λείπει να παίρνει 0)
+    #[serde(default)]
+    pub id: i64,
+
+    #[serde(default)]
     pub description: String,
+
+    // ✅ quantity μπορεί να έρθει ως int ή float -> κράτα f64, αλλά βάλε default
+    #[serde(default, alias = "qty")]
     pub quantity: f64,
+
+    // ✅ unit_price μπορεί να έρθει unitPrice ή unit_price
+    #[serde(default, rename = "unit_price", alias = "unitPrice")]
     pub unit_price: f64,
+
+    // ✅ στο seed δεν υπάρχει total, άρα default
+    #[serde(default)]
     pub total: f64,
 }
 

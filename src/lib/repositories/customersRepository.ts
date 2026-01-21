@@ -1,10 +1,10 @@
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from "@tauri-apps/api/tauri";
 import {
   TauriCustomer,
   TauriCustomerWithVehicleCount,
   TauriCustomerWithVehicles,
-  TauriPaginatedResult
-} from '../../types/tauri';
+  TauriPaginatedResult,
+} from "../../types/tauri";
 
 export interface CustomerInput {
   name: string;
@@ -16,25 +16,37 @@ export interface CustomerInput {
 
 export const customersRepository = {
   async listCustomers(
-    search: string = '',
+    search: string = "",
     page: number = 1,
-    perPage: number = 20
+    perPage: number = 20,
   ): Promise<TauriPaginatedResult<TauriCustomerWithVehicleCount>> {
-    return await invoke<TauriPaginatedResult<TauriCustomerWithVehicleCount>>('list_customers', {
-      search,
-      page,
-      perPage,
-    });
+    return await invoke<TauriPaginatedResult<TauriCustomerWithVehicleCount>>(
+      "list_customers",
+      {
+        search,
+        page,
+        perPage,
+      },
+    );
   },
 
-  async getCustomerWithVehicles(customerId: string): Promise<TauriCustomerWithVehicles> {
-    return await invoke<TauriCustomerWithVehicles>('get_customer_with_vehicles', {
-      customerId,
-    });
+  async listAllCustomers(): Promise<Customer[]> {
+    return await invoke<Customer[]>("list_all_customers", {});
+  },
+
+  async getCustomerWithVehicles(
+    customerId: string,
+  ): Promise<TauriCustomerWithVehicles> {
+    return await invoke<TauriCustomerWithVehicles>(
+      "get_customer_with_vehicles",
+      {
+        customerId,
+      },
+    );
   },
 
   async createCustomer(data: CustomerInput): Promise<TauriCustomer> {
-    return await invoke<TauriCustomer>('create_customer', {
+    return await invoke<TauriCustomer>("create_customer", {
       name: data.name,
       email: data.email || null,
       phone: data.phone || null,
@@ -43,8 +55,11 @@ export const customersRepository = {
     });
   },
 
-  async updateCustomer(id: string, data: CustomerInput): Promise<TauriCustomer> {
-    return await invoke<TauriCustomer>('update_customer', {
+  async updateCustomer(
+    id: string,
+    data: CustomerInput,
+  ): Promise<TauriCustomer> {
+    return await invoke<TauriCustomer>("update_customer", {
       id,
       name: data.name,
       email: data.email || null,
@@ -55,8 +70,17 @@ export const customersRepository = {
   },
 
   async deleteCustomer(id: string): Promise<void> {
-    return await invoke<void>('delete_customer', {
+    return await invoke<void>("delete_customer", {
       id,
     });
+  },
+
+  async listAllCustomersWithVehicleCount(): Promise<
+    TauriCustomerWithVehicleCount[]
+  > {
+    return await invoke<TauriCustomerWithVehicleCount[]>(
+      "list_all_customers_with_vehicle_count",
+      {},
+    );
   },
 };

@@ -1,5 +1,17 @@
-import { invoke } from '@tauri-apps/api/tauri';
-import { TauriVehicle, TauriVehicleWithCustomer } from '../../types/tauri';
+import { invoke } from "@tauri-apps/api/tauri";
+import { TauriVehicle, TauriVehicleWithCustomer } from "../../types/tauri";
+import type { Vehicle } from "../../types/vehicle";
+
+const mapTauriVehicleToVehicle = (v: TauriVehicle): Vehicle => ({
+  id: v.id,
+  customer_id: v.customer_id,
+  make: v.make,
+  model: v.model,
+  year: v.year,
+  license_plate: v.license_plate ?? null,
+  vin: v.vin ?? null,
+  created_at: v.created_at ?? new Date().toISOString(),
+});
 
 export interface VehicleInput {
   customer_id: string;
@@ -11,8 +23,8 @@ export interface VehicleInput {
 }
 
 export const vehiclesRepository = {
-  async createVehicle(data: VehicleInput): Promise<TauriVehicle> {
-    return await invoke<TauriVehicle>('create_vehicle', {
+  async createVehicle(data: VehicleInput): Promise<Vehicle> {
+    const created = await invoke<TauriVehicle>("create_vehicle", {
       customerId: data.customer_id,
       make: data.make,
       model: data.model,
@@ -20,16 +32,20 @@ export const vehiclesRepository = {
       licensePlate: data.license_plate || null,
       vin: data.vin || null,
     });
+
+    return mapTauriVehicleToVehicle(created);
   },
 
-  async listVehiclesByCustomer(customerId: string): Promise<TauriVehicle[]> {
-    return await invoke<TauriVehicle[]>('list_vehicles_by_customer', {
+  async listVehiclesByCustomer(customerId: string): Promise<Vehicle[]> {
+    const rows = await invoke<TauriVehicle[]>("list_vehicles_by_customer", {
       customerId,
     });
+
+    return rows.map(mapTauriVehicleToVehicle);
   },
 
-  async updateVehicle(id: string, data: VehicleInput): Promise<TauriVehicle> {
-    return await invoke<TauriVehicle>('update_vehicle', {
+  async updateVehicle(id: string, data: VehicleInput): Promise<Vehicle> {
+    const updated = await invoke<TauriVehicle>("update_vehicle", {
       id,
       customerId: data.customer_id,
       make: data.make,
@@ -38,16 +54,16 @@ export const vehiclesRepository = {
       licensePlate: data.license_plate || null,
       vin: data.vin || null,
     });
+
+    return mapTauriVehicleToVehicle(updated);
   },
 
   async deleteVehicle(id: string): Promise<void> {
-    return await invoke<void>('delete_vehicle', {
-      id,
-    });
+    return await invoke<void>("delete_vehicle", { id });
   },
 
   async getVehicleWithCustomer(id: string): Promise<TauriVehicleWithCustomer> {
-    return await invoke<TauriVehicleWithCustomer>('get_vehicle_with_customer', {
+    return await invoke<TauriVehicleWithCustomer>("get_vehicle_with_customer", {
       id,
     });
   },

@@ -27,8 +27,6 @@ export const CustomersPage: React.FC<{
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
-  const [selectedCustomerForVehicle, setSelectedCustomerForVehicle] =
-    useState<Customer | null>(null);
 
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -38,6 +36,18 @@ export const CustomersPage: React.FC<{
   const [recordsPerPage, setRecordsPerPage] = useState(50);
   const [totalRecords, setTotalRecords] = useState(0);
   const customerInputRef = useRef<HTMLInputElement>(null);
+  type CustomerWithCount = Customer & { vehicle_count?: number };
+
+  const [selectedCustomerForVehicle, setSelectedCustomerForVehicle] =
+    useState<CustomerWithCount | null>(null);
+
+  const [allCustomersForVehicleModal, setAllCustomersForVehicleModal] =
+    useState<CustomerWithCount[]>([]);
+
+  const [
+    loadingAllCustomersForVehicleModal,
+    setLoadingAllCustomersForVehicleModal,
+  ] = useState(false);
 
   useEffect(() => {
     if (showVehicleForm) {
@@ -92,7 +102,7 @@ export const CustomersPage: React.FC<{
       const result = await customersRepository.listCustomers(
         searchTerm,
         currentPage,
-        recordsPerPage
+        recordsPerPage,
       );
 
       setTotalRecords(result.total);
@@ -114,11 +124,11 @@ export const CustomersPage: React.FC<{
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
         filteredData = filteredData.filter(
           (customer: any) =>
-            (customer.vehicle_count ?? (customer.vehicles?.length || 0)) > 1
+            (customer.vehicle_count ?? (customer.vehicles?.length || 0)) > 1,
         );
       } else if (filterStatus === "multi-vehicle") {
         filteredData = filteredData.filter(
-          (customer: any) => customer.vehicle_count > 1
+          (customer: any) => customer.vehicle_count > 1,
         );
       }
 
@@ -127,6 +137,43 @@ export const CustomersPage: React.FC<{
       console.error("Error loading customers:", error);
     } finally {
       setLoading(false);
+    }
+  };
+  const fetchAllCustomersForVehicleModal = async () => {
+    try {
+      setLoadingAllCustomersForVehicleModal(true);
+
+      // Φέρνουμε ΟΛΟΥΣ μέσω pagination (works τώρα, χωρίς νέο command)
+      const perPage = 500;
+      let page = 1;
+      let all: CustomerWithCount[] = [];
+
+      while (true) {
+        const res = await customersRepository.listCustomers("", page, perPage);
+        const items = Array.isArray((res as any)?.items)
+          ? (res as any).items
+          : [];
+
+        const mapped = items.map((c: any) => ({
+          ...c,
+          vehicle_count: Number(c.vehicle_count) || 0,
+          vehicles: c.vehicles ?? [],
+        })) as CustomerWithCount[];
+
+        all = all.concat(mapped);
+
+        if (items.length < perPage) break;
+        page += 1;
+        if (page > 50) break; // safety
+      }
+
+      setAllCustomersForVehicleModal(all);
+      console.log("ALL MODAL CUSTOMERS SAMPLE:", all.slice(0, 3));
+    } catch (e) {
+      console.error("Failed to load all customers for vehicle modal", e);
+      setAllCustomersForVehicleModal([]);
+    } finally {
+      setLoadingAllCustomersForVehicleModal(false);
     }
   };
 
@@ -150,9 +197,8 @@ export const CustomersPage: React.FC<{
     handleCloseForm();
   };
 
-  const handleAddVehicle = () => {
-    console.log("Customers loaded:", customers.length);
-    console.log("Customers sample:", customers[0]);
+  const handleAddVehicle = async () => {
+    await fetchAllCustomersForVehicleModal(); // ✅ φορτώνει όλους με vehicle_count
     setShowVehicleForm(true);
     setShowCustomerDropdown(true);
     setCustomerSearchTerm("");
@@ -166,7 +212,7 @@ export const CustomersPage: React.FC<{
     setShowCustomerDropdown(false);
   };
 
-  const filteredCustomersForVehicle = customers.filter(
+  const filteredCustomersForVehicle = allCustomersForVehicleModal.filter(
     (customer) =>
       (customer.name || "")
         .toLowerCase()
@@ -174,7 +220,7 @@ export const CustomersPage: React.FC<{
       (customer.email || "")
         .toLowerCase()
         .includes(customerSearchTerm.toLowerCase()) ||
-      (customer.phone || "").includes(customerSearchTerm)
+      (customer.phone || "").includes(customerSearchTerm),
   );
 
   const handleSaveVehicle = () => {
@@ -194,12 +240,12 @@ export const CustomersPage: React.FC<{
   const totalVehicles = customers.reduce(
     (sum, customer: any) =>
       sum + (customer.vehicle_count ?? (customer.vehicles?.length || 0)),
-    0
+    0,
   );
 
   const customersWithMultipleVehicles = customers.filter(
     (customer: any) =>
-      (customer.vehicle_count ?? (customer.vehicles?.length || 0)) > 1
+      (customer.vehicle_count ?? (customer.vehicles?.length || 0)) > 1,
   ).length;
 
   if (loading) {
@@ -402,7 +448,7 @@ export const CustomersPage: React.FC<{
                   {
                     length: Math.min(
                       5,
-                      Math.ceil(totalRecords / recordsPerPage)
+                      Math.ceil(totalRecords / recordsPerPage),
                     ),
                   },
                   (_, i) => {
@@ -432,14 +478,17 @@ export const CustomersPage: React.FC<{
                         {pageNum}
                       </button>
                     );
-                  }
+                  },
                 )}
               </div>
 
               <button
                 onClick={() =>
                   setCurrentPage((prev) =>
-                    Math.min(Math.ceil(totalRecords / recordsPerPage), prev + 1)
+                    Math.min(
+                      Math.ceil(totalRecords / recordsPerPage),
+                      prev + 1,
+                    ),
                   )
                 }
                 disabled={
@@ -512,13 +561,18 @@ export const CustomersPage: React.FC<{
                     }}
                     onFocus={() => setShowCustomerDropdown(true)}
                     placeholder="Type customer name, email, or phone..."
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2.5 pr-10 rounded-xl border border-gray-300/60 dark:border-slate-600/60
+bg-white dark:bg-slate-800 text-gray-900 dark:text-white
+placeholder:text-gray-400 dark:placeholder:text-gray-400
+shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60"
                     required={!selectedCustomerForVehicle}
                   />
                   {selectedCustomerForVehicle && (
                     <button
                       type="button"
                       onClick={() => {
+                        console.log("SELECTED CUSTOMER RAW:", customer);
+
                         setSelectedCustomerForVehicle(null);
                         setCustomerSearchTerm("");
                       }}
@@ -529,37 +583,61 @@ export const CustomersPage: React.FC<{
                   )}
                 </div>
                 {showCustomerDropdown && (
-                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {filteredCustomersForVehicle.length > 0 ? (
-                      filteredCustomersForVehicle
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((customer) => (
-                          <button
-                            key={customer.id}
-                            type="button"
-                            onClick={() => {
-                              console.log(
-                                "Selected customer:",
-                                customer.id,
-                                customer.name
-                              );
-                              setSelectedCustomerForVehicle(customer);
-                              setShowCustomerDropdown(false);
-                              setCustomerSearchTerm("");
-                            }}
-                            className="w-full text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600 last:border-b-0"
-                          >
-                            <div className="font-medium">{customer.name}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                              {customer.phone ?? "-"} - {customer.email ?? "-"}
-                            </div>
-                          </button>
-                        ))
-                    ) : (
-                      <div className="px-3 py-2 text-gray-500 dark:text-gray-400">
-                        No customers found
-                      </div>
-                    )}
+                  <div className="absolute z-10 w-full mt-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl overflow-hidden">
+                    <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-slate-700">
+                      {loadingAllCustomersForVehicleModal
+                        ? "Loading customers..."
+                        : `${filteredCustomersForVehicle.length} results`}
+                    </div>
+
+                    <div className="max-h-72 overflow-y-auto py-1">
+                      {loadingAllCustomersForVehicleModal ? (
+                        <div className="px-3 py-3 text-sm text-gray-500 dark:text-gray-300">
+                          Loading customers...
+                        </div>
+                      ) : filteredCustomersForVehicle.length > 0 ? (
+                        filteredCustomersForVehicle
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map((customer) => (
+                            <button
+                              key={customer.id}
+                              type="button"
+                              onClick={() => {
+                                console.log("SELECTED CUSTOMER RAW:", customer);
+                                setSelectedCustomerForVehicle(customer);
+                                setShowCustomerDropdown(false);
+                                setCustomerSearchTerm("");
+                              }}
+                              className={`w-[calc(100%-0.5rem)] mx-1 my-1 text-left px-4 py-3 rounded-lg transition active:scale-[0.99]
+              ${
+                selectedCustomerForVehicle?.id === customer.id
+                  ? "bg-blue-100/70 dark:bg-blue-900/35 ring-1 ring-blue-500/30"
+                  : "hover:bg-blue-50 dark:hover:bg-blue-900/20"
+              }`}
+                            >
+                              <div className="font-semibold leading-tight text-gray-900 dark:text-white">
+                                {customer.name}
+                              </div>
+
+                              <div className="text-sm mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-gray-600 dark:text-gray-300">
+                                <span className="font-medium text-gray-700 dark:text-gray-200">
+                                  {customer.phone ?? "-"}
+                                </span>
+                                <span className="text-gray-400 dark:text-gray-500">
+                                  •
+                                </span>
+                                <span className="text-gray-600 dark:text-gray-300">
+                                  {customer.email ?? "-"}
+                                </span>
+                              </div>
+                            </button>
+                          ))
+                      ) : (
+                        <div className="px-3 py-3 text-sm text-gray-500 dark:text-gray-300">
+                          No customers found
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -584,8 +662,7 @@ export const CustomersPage: React.FC<{
                 </p>
                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
                   Current vehicles:{" "}
-                  {(selectedCustomerForVehicle as any).vehicle_count ??
-                    (selectedCustomerForVehicle.vehicles?.length || 0)}
+                  {selectedCustomerForVehicle?.vehicle_count ?? 0}
                 </p>
               </div>
             )}
@@ -594,7 +671,7 @@ export const CustomersPage: React.FC<{
               <>
                 {console.log(
                   "Rendering VehicleForm for:",
-                  selectedCustomerForVehicle.id
+                  selectedCustomerForVehicle.id,
                 )}
                 <VehicleForm
                   customerId={selectedCustomerForVehicle.id}

@@ -21,6 +21,8 @@ fn main() {
     .manage(AppState::new())
     .invoke_handler(tauri::generate_handler![
       commands::auth::check_first_run,
+      commands::customers::list_all_customers,
+      commands::customers::list_all_customers_with_vehicle_count,
       commands::auth::setup_admin_pin,
       commands::auth::login_with_pin,
       commands::auth::logout,

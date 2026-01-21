@@ -1,5 +1,5 @@
-import type { Customer } from './customer';
-import type { ServiceRecord } from './service';
+import type { Customer } from "./customer";
+import type { ServiceRecord } from "./service";
 
 export interface Vehicle {
   id: string;
@@ -7,8 +7,8 @@ export interface Vehicle {
   make: string;
   model: string;
   year: number;
-  vin: string;
-  license_plate: string;
+  vin?: string | null;
+  license_plate?: string | null;
   created_at: string;
   customer?: Customer;
   service_records?: ServiceRecord[];

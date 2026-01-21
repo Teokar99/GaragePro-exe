@@ -3,6 +3,56 @@ use crate::models::{PaginatedResult, ServiceItem, ServiceRecord, ServiceRecordWi
 use chrono::Utc;
 use rusqlite::Result;
 
+fn parse_services_json(services_json: &str) -> Vec<ServiceItem> {
+    // Πρώτη προσπάθεια: όπως είναι
+    println!("parse_services_json called, len={}", services_json.len());
+    if let Ok(items) = serde_json::from_str::<Vec<ServiceItem>>(services_json) {
+        return items;
+    }
+
+    // Tolerant fallback: διορθώνει keys quantity/unit_price <-> qty/unitPrice
+    let val: serde_json::Value = match serde_json::from_str(services_json) {
+        Ok(v) => v,
+        Err(_) => return vec![],
+    };
+
+    let arr = match val.as_array() {
+        Some(a) => a,
+        None => return vec![],
+    };
+
+    let mut fixed: Vec<serde_json::Value> = Vec::with_capacity(arr.len());
+
+    for item in arr {
+        let mut obj = match item.as_object() {
+            Some(o) => o.clone(),
+            None => continue,
+        };
+
+        // quantity <-> qty
+        if !obj.contains_key("qty") && obj.contains_key("quantity") {
+            obj.insert("qty".to_string(), obj["quantity"].clone());
+        }
+        if !obj.contains_key("quantity") && obj.contains_key("qty") {
+            obj.insert("quantity".to_string(), obj["qty"].clone());
+        }
+
+        // unit_price <-> unitPrice
+        if !obj.contains_key("unitPrice") && obj.contains_key("unit_price") {
+            obj.insert("unitPrice".to_string(), obj["unit_price"].clone());
+        }
+        if !obj.contains_key("unit_price") && obj.contains_key("unitPrice") {
+            obj.insert("unit_price".to_string(), obj["unitPrice"].clone());
+        }
+
+        fixed.push(serde_json::Value::Object(obj));
+    }
+
+    serde_json::from_value::<Vec<ServiceItem>>(serde_json::Value::Array(fixed))
+        .unwrap_or_else(|_| vec![])
+}
+
+
 pub fn list_services(
     search: Option<String>,
     page: u32,
@@ -62,8 +112,7 @@ pub fn list_services(
             [param, &per_page.to_string(), &offset.to_string()],
             |row| {
                 let services_json: String = row.get(7)?;
-                let services: Vec<ServiceItem> =
-                    serde_json::from_str(&services_json).unwrap_or_else(|_| vec![]);
+                let services: Vec<ServiceItem> = parse_services_json(&services_json);
 
                 Ok(ServiceRecordWithDetails {
                     id: row.get(0)?,
@@ -96,8 +145,7 @@ pub fn list_services(
             [&per_page.to_string(), &offset.to_string()],
             |row| {
                 let services_json: String = row.get(7)?;
-                let services: Vec<ServiceItem> =
-                    serde_json::from_str(&services_json).unwrap_or_else(|_| vec![]);
+                let services: Vec<ServiceItem> = parse_services_json(&services_json);
 
                 Ok(ServiceRecordWithDetails {
                     id: row.get(0)?,
@@ -237,8 +285,7 @@ pub fn update_service(
         [&id],
         |row| {
             let services_json: String = row.get(7)?;
-            let services: Vec<ServiceItem> = serde_json::from_str(&services_json)
-                .unwrap_or_else(|_| vec![]);
+            let services: Vec<ServiceItem> = parse_services_json(&services_json);
 
             Ok(ServiceRecord {
                 id: row.get(0)?,
@@ -282,8 +329,7 @@ pub fn get_service(id: String) -> Result<Option<ServiceRecord>> {
         [id],
         |row| {
             let services_json: String = row.get(7)?;
-            let services: Vec<ServiceItem> = serde_json::from_str(&services_json)
-                .unwrap_or_else(|_| vec![]);
+            let services: Vec<ServiceItem> = parse_services_json(&services_json);
 
             Ok(ServiceRecord {
                 id: row.get(0)?,
@@ -322,8 +368,7 @@ pub fn list_services_by_vehicle(vehicle_id: String) -> Result<Vec<ServiceRecord>
     let services = stmt
         .query_map([vehicle_id], |row| {
             let services_json: String = row.get(7)?;
-            let services: Vec<ServiceItem> = serde_json::from_str(&services_json)
-                .unwrap_or_else(|_| vec![]);
+            let services: Vec<ServiceItem> = parse_services_json(&services_json);
 
             Ok(ServiceRecord {
                 id: row.get(0)?,
