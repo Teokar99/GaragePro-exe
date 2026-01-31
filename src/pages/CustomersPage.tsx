@@ -35,9 +35,27 @@ export const CustomersPage: React.FC<{
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(50);
+  const [stats, setStats] = useState<CustomerStats | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
   const customerInputRef = useRef<HTMLInputElement>(null);
   type CustomerWithCount = Customer & { vehicle_count?: number };
+  type CustomerStats = {
+    total_customers: number;
+    total_vehicles: number;
+    multi_vehicle_customers?: number; // optional αν δεν το έχεις ακόμα στο Rust
+  };
+  const loadStats = async () => {
+    try {
+      const s = await customersRepository.getCustomerStats();
+      setStats(s);
+    } catch (e) {
+      console.error("Failed to load stats", e);
+    }
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -205,6 +223,7 @@ export const CustomersPage: React.FC<{
 
   const handleSaveCustomer = () => {
     loadCustomers();
+    loadStats();
     handleCloseForm();
   };
 
@@ -236,6 +255,7 @@ export const CustomersPage: React.FC<{
 
   const handleSaveVehicle = () => {
     loadCustomers();
+    loadStats();
     handleCloseVehicleForm();
   };
 
@@ -243,6 +263,7 @@ export const CustomersPage: React.FC<{
     try {
       await customersRepository.deleteCustomer(customerId);
       await loadCustomers();
+      await loadStats();
     } catch (error) {
       console.error("Error deleting customer:", error);
     }
@@ -319,7 +340,7 @@ export const CustomersPage: React.FC<{
                 Total Vehicles
               </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {totalVehicles}
+                {stats?.total_vehicles ?? 0}
               </p>
             </div>
           </div>
@@ -351,8 +372,8 @@ export const CustomersPage: React.FC<{
                 Avg. Vehicles
               </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {customers.length > 0
-                  ? (totalVehicles / customers.length).toFixed(1)
+                {stats && stats.total_customers > 0
+                  ? (stats.total_vehicles / stats.total_customers).toFixed(1)
                   : "0.0"}
               </p>
             </div>

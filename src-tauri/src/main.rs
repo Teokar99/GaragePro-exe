@@ -49,6 +49,7 @@ fn main() {
       commands::services::delete_service,
       commands::services::get_service,
       commands::services::list_services_by_vehicle,
+      commands::customers::get_customer_stats,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

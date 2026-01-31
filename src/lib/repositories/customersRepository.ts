@@ -6,6 +6,11 @@ import {
   TauriPaginatedResult,
 } from "../../types/tauri";
 
+export type CustomerStats = {
+  total_customers: number;
+  total_vehicles: number;
+};
+
 export interface CustomerInput {
   name: string;
   email?: string | null;
@@ -30,8 +35,8 @@ export const customersRepository = {
     );
   },
 
-  async listAllCustomers(): Promise<Customer[]> {
-    return await invoke<Customer[]>("list_all_customers", {});
+  async listAllCustomers(): Promise<TauriCustomer[]> {
+    return await invoke<TauriCustomer[]>("list_all_customers", {});
   },
 
   async getCustomerWithVehicles(
@@ -82,5 +87,8 @@ export const customersRepository = {
       "list_all_customers_with_vehicle_count",
       {},
     );
+  },
+  async getCustomerStats(): Promise<CustomerStats> {
+    return await invoke<CustomerStats>("get_customer_stats", {});
   },
 };

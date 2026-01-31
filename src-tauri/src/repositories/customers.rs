@@ -2,6 +2,7 @@ use crate::db::{generate_uuid, get_connection};
 use crate::models::{Customer, CustomerWithVehicleCount, CustomerWithVehicles, PaginatedResult, Vehicle,};
 use chrono::Utc;
 use rusqlite::Result;
+use serde::{Deserialize, Serialize};
 
 pub fn list_customers(
     search: Option<String>,
@@ -96,6 +97,27 @@ pub fn list_customers(
         total_pages,
     })
 }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CustomerStats {
+    pub total_customers: i32,
+    pub total_vehicles: i32,
+}
+pub fn get_customer_stats() -> Result<CustomerStats> {
+    let conn = get_connection()?;
+
+    let total_customers: i32 =
+        conn.query_row("SELECT COUNT(*) FROM customers", [], |row| row.get(0))?;
+
+    let total_vehicles: i32 =
+        conn.query_row("SELECT COUNT(*) FROM vehicles", [], |row| row.get(0))?;
+
+    Ok(CustomerStats {
+        total_customers,
+        total_vehicles,
+    })
+}
+
+
 
 pub fn list_all_customers() -> rusqlite::Result<Vec<Customer>> {
     let conn = get_connection()?;

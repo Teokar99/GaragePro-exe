@@ -53,3 +53,7 @@ pub fn delete_customer(id: String) -> Result<(), String> {
 pub fn get_customer_with_vehicles(id: String) -> Result<Option<CustomerWithVehicles>, String> {
     customers::get_customer_with_vehicles(id).map_err(|e| e.to_string())
 }
+#[tauri::command]
+pub fn get_customer_stats() -> Result<crate::repositories::customers::CustomerStats, String> {
+    crate::repositories::customers::get_customer_stats().map_err(|e| e.to_string())
+}
