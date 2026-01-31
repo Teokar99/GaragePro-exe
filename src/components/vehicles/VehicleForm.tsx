@@ -1,6 +1,12 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { vehiclesRepository } from "../../lib/repositories/vehiclesRepository";
 import { logError } from "../../utils/errorHandler";
+import { SearchableSelect } from "../ui/SearchableSelect";
+import {
+  generateYearOptions,
+  getAllMakes,
+  getModelsForMake,
+} from "../../data/car-data";
 
 export type VehicleInput = {
   customer_id: string;
@@ -16,6 +22,7 @@ interface VehicleFormProps {
   onClose: () => void;
   onSave: () => void;
 }
+
 export const VehicleForm: React.FC<VehicleFormProps> = ({
   customerId,
   onClose,
@@ -29,6 +36,13 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
     vin: "",
   });
 
+  const makeOptions = useMemo(() => getAllMakes(), []);
+  const yearOptions = useMemo(() => generateYearOptions(), []);
+
+  const modelOptions = useMemo(() => {
+    return getModelsForMake(formData.make);
+  }, [formData.make]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -39,7 +53,7 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
         model: formData.model,
         year: formData.year,
         license_plate: formData.license_plate || null,
-        vin: formData.vin || null,
+        vin: reminderOrNull(formData.vin),
       });
 
       setFormData({
@@ -60,47 +74,52 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Make *
-        </label>
-        <input
-          type="text"
+        <SearchableSelect
+          label="Make"
           required
           value={formData.make}
-          onChange={(e) => setFormData({ ...formData, make: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="e.g., Toyota, Ford, BMW"
+          onChange={(make) =>
+            setFormData((prev) => ({
+              ...prev,
+              make,
+              model: "", // reset model when make changes
+            }))
+          }
+          options={makeOptions}
+          placeholder="Select make..."
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Model *
-        </label>
-        <input
-          type="text"
+        <SearchableSelect
+          label="Model"
           required
           value={formData.model}
-          onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="e.g., Camry, F-150, X3"
+          onChange={(model) => setFormData((prev) => ({ ...prev, model }))}
+          options={modelOptions}
+          placeholder={formData.make ? "Select model..." : "Select make first"}
+          disabled={!formData.make}
         />
+        {!formData.make ? (
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Please select a make first
+          </p>
+        ) : null}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Year *
-        </label>
-        <input
-          type="number"
+        <SearchableSelect
+          label="Year"
           required
-          min="1900"
-          max={new Date().getFullYear() + 1}
-          value={formData.year}
-          onChange={(e) =>
-            setFormData({ ...formData, year: parseInt(e.target.value) })
+          value={String(formData.year)}
+          onChange={(yearStr) =>
+            setFormData((prev) => ({
+              ...prev,
+              year: Number.parseInt(yearStr, 10),
+            }))
           }
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          options={yearOptions}
+          placeholder="Select year..."
         />
       </div>
 
@@ -151,3 +170,10 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
     </form>
   );
 };
+
+// μικρό helper για να μην αλλάζεις submit logic ουσιαστικά,
+// απλά κάνει trim και null αν είναι άδειο
+function reminderOrNull(v?: string | null) {
+  const trimmed = (v ?? "").trim();
+  return trimmed.length ? trimmed : null;
+}
