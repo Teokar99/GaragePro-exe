@@ -30,6 +30,7 @@ export const CustomersPage: React.FC<{
 
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,6 +38,14 @@ export const CustomersPage: React.FC<{
   const [totalRecords, setTotalRecords] = useState(0);
   const customerInputRef = useRef<HTMLInputElement>(null);
   type CustomerWithCount = Customer & { vehicle_count?: number };
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setSearchTerm(searchInput);
+    }, 400);
+
+    return () => window.clearTimeout(id);
+  }, [searchInput]);
 
   const [selectedCustomerForVehicle, setSelectedCustomerForVehicle] =
     useState<CustomerWithCount | null>(null);
@@ -90,12 +99,10 @@ export const CustomersPage: React.FC<{
   }, []);
 
   useEffect(() => {
-    if (loading) return;
     setCurrentPage(1);
   }, [searchTerm, filterStatus]);
 
   useEffect(() => {
-    if (loading) return;
     loadCustomers();
   }, [currentPage, recordsPerPage, searchTerm, filterStatus]);
 
@@ -252,14 +259,6 @@ export const CustomersPage: React.FC<{
       (customer.vehicle_count ?? (customer.vehicles?.length || 0)) > 1,
   ).length;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -369,11 +368,8 @@ export const CustomersPage: React.FC<{
             <input
               type="text"
               placeholder="Search customers..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                console.log("active:", document.activeElement);
-              }}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -393,12 +389,20 @@ export const CustomersPage: React.FC<{
       </div>
 
       {/* Customers List */}
-      <CustomerList
-        customers={customers}
-        onEdit={handleEditCustomer}
-        onDelete={handleDeleteCustomer}
-        canEdit={permissions.canEditCustomers}
-      />
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/60 dark:bg-slate-800/60 z-10">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        )}
+
+        <CustomerList
+          customers={customers}
+          onEdit={handleEditCustomer}
+          onDelete={handleDeleteCustomer}
+          canEdit={permissions.canEditCustomers}
+        />
+      </div>
 
       {/* Pagination Controls */}
       {totalRecords > 0 && (
@@ -594,11 +598,16 @@ shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-bl
                     </div>
 
                     <div className="max-h-72 overflow-y-auto py-1">
-                      {loadingAllCustomersForVehicleModal ? (
+                      {/* Loading (χωρίς να αλλάζει όλο το tree) */}
+                      {loadingAllCustomersForVehicleModal && (
                         <div className="px-3 py-3 text-sm text-gray-500 dark:text-gray-300">
                           Loading customers...
                         </div>
-                      ) : filteredCustomersForVehicle.length > 0 ? (
+                      )}
+
+                      {/* Results */}
+                      {!loadingAllCustomersForVehicleModal &&
+                        filteredCustomersForVehicle.length > 0 &&
                         filteredCustomersForVehicle
                           .sort((a, b) => a.name.localeCompare(b.name))
                           .map((customer) => (
@@ -609,16 +618,16 @@ shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-bl
                                 e.preventDefault();
                                 setSelectedCustomerForVehicle(customer);
                                 setCustomerSearchTerm(
-                                  `${customer.name} - ${customer.phone ?? ""}`,
+                                  `${customer.name}${customer.phone ? ` - ${customer.phone}` : ""}`,
                                 );
                                 setShowCustomerDropdown(false);
                               }}
                               className={`w-[calc(100%-0.5rem)] mx-1 my-1 text-left px-4 py-3 rounded-lg transition active:scale-[0.99]
-              ${
-                selectedCustomerForVehicle?.id === customer.id
-                  ? "bg-blue-100/70 dark:bg-blue-900/35 ring-1 ring-blue-500/30"
-                  : "hover:bg-blue-50 dark:hover:bg-blue-900/20"
-              }`}
+            ${
+              selectedCustomerForVehicle?.id === customer.id
+                ? "bg-blue-100/70 dark:bg-blue-900/35 ring-1 ring-blue-500/30"
+                : "hover:bg-blue-50 dark:hover:bg-blue-900/20"
+            }`}
                             >
                               <div className="font-semibold leading-tight text-gray-900 dark:text-white">
                                 {customer.name}
@@ -636,12 +645,15 @@ shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-bl
                                 </span>
                               </div>
                             </button>
-                          ))
-                      ) : (
-                        <div className="px-3 py-3 text-sm text-gray-500 dark:text-gray-300">
-                          No customers found
-                        </div>
-                      )}
+                          ))}
+
+                      {/* Empty state */}
+                      {!loadingAllCustomersForVehicleModal &&
+                        filteredCustomersForVehicle.length === 0 && (
+                          <div className="px-3 py-3 text-sm text-gray-500 dark:text-gray-300">
+                            No customers found
+                          </div>
+                        )}
                     </div>
                   </div>
                 )}
