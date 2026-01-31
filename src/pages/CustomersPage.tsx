@@ -55,6 +55,10 @@ export const CustomersPage: React.FC<{
       setTimeout(() => customerInputRef.current?.focus(), 0);
     }
   }, [showVehicleForm]);
+  useEffect(() => {
+    console.log("CustomersPage MOUNT");
+    return () => console.log("CustomersPage UNMOUNT");
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -366,7 +370,10 @@ export const CustomersPage: React.FC<{
               type="text"
               placeholder="Search customers..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                console.log("active:", document.activeElement);
+              }}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -545,19 +552,15 @@ export const CustomersPage: React.FC<{
                 <div className="relative">
                   <input
                     type="text"
-                    value={
-                      selectedCustomerForVehicle
-                        ? `${selectedCustomerForVehicle.name} - ${
-                            selectedCustomerForVehicle.phone ?? ""
-                          }`
-                        : customerSearchTerm
-                    }
+                    value={customerSearchTerm}
                     onChange={(e) => {
-                      setCustomerSearchTerm(e.target.value);
+                      const v = e.target.value;
+                      setCustomerSearchTerm(v);
                       setShowCustomerDropdown(true);
-                      if (selectedCustomerForVehicle) {
+
+                      // αν αρχίσεις να πληκτρολογείς ενώ έχεις επιλογή, καθάρισε την επιλογή
+                      if (selectedCustomerForVehicle)
                         setSelectedCustomerForVehicle(null);
-                      }
                     }}
                     onFocus={() => setShowCustomerDropdown(true)}
                     placeholder="Type customer name, email, or phone..."
@@ -565,16 +568,16 @@ export const CustomersPage: React.FC<{
 bg-white dark:bg-slate-800 text-gray-900 dark:text-white
 placeholder:text-gray-400 dark:placeholder:text-gray-400
 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60"
-                    required={!selectedCustomerForVehicle}
                   />
+
                   {selectedCustomerForVehicle && (
                     <button
                       type="button"
-                      onClick={() => {
-                        console.log("SELECTED CUSTOMER RAW:", customer);
-
+                      onMouseDown={(e) => {
+                        e.preventDefault();
                         setSelectedCustomerForVehicle(null);
                         setCustomerSearchTerm("");
+                        setShowCustomerDropdown(false);
                       }}
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                     >
@@ -602,11 +605,13 @@ shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-bl
                             <button
                               key={customer.id}
                               type="button"
-                              onClick={() => {
-                                console.log("SELECTED CUSTOMER RAW:", customer);
+                              onMouseDown={(e) => {
+                                e.preventDefault();
                                 setSelectedCustomerForVehicle(customer);
+                                setCustomerSearchTerm(
+                                  `${customer.name} - ${customer.phone ?? ""}`,
+                                );
                                 setShowCustomerDropdown(false);
-                                setCustomerSearchTerm("");
                               }}
                               className={`w-[calc(100%-0.5rem)] mx-1 my-1 text-left px-4 py-3 rounded-lg transition active:scale-[0.99]
               ${
