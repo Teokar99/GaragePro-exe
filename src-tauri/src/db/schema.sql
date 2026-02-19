@@ -17,6 +17,10 @@ CREATE TABLE IF NOT EXISTS customers (
     phone TEXT,
     address TEXT,
     afm TEXT,
+    name_search TEXT,
+    email_search TEXT,
+    phone_search TEXT,
+    afm_search TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -59,3 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_customer_id ON vehicles(customer_id);
 CREATE INDEX IF NOT EXISTS idx_vehicles_license_plate ON vehicles(license_plate);
 CREATE INDEX IF NOT EXISTS idx_service_records_vehicle_id ON service_records(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_service_records_date ON service_records(date);
+CREATE INDEX IF NOT EXISTS idx_customers_name_search ON customers(name_search);
+CREATE INDEX IF NOT EXISTS idx_customers_email_search ON customers(email_search);
+CREATE INDEX IF NOT EXISTS idx_customers_phone_search ON customers(phone_search);
+CREATE INDEX IF NOT EXISTS idx_customers_afm_search ON customers(afm_search);

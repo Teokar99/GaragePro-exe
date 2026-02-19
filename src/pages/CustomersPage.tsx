@@ -1,21 +1,23 @@
-import React, { useState, useEffect, useRef } from "react";
 import {
-  Plus,
-  Search,
-  Filter,
-  Users,
   Car,
+  Filter,
   MapPin,
   Phone,
+  Plus,
+  Search,
+  Users,
   X,
 } from "lucide-react";
-import { customersRepository } from "../lib/repositories/customersRepository";
+import React, { useEffect, useRef, useState } from "react";
 import { CustomerForm } from "../components/customers/CustomerForm";
 import { CustomerList } from "../components/customers/CustomerList";
-import { VehicleForm } from "../components/vehicles/VehicleForm";
 import { Modal } from "../components/ui/Modal";
-import type { Customer } from "../types";
+import { VehicleForm } from "../components/vehicles/VehicleForm";
 import { usePermissions } from "../hooks/usePermissions";
+import { customersRepository } from "../lib/repositories/customersRepository";
+import type { Customer } from "../types";
+import { searchMatch } from "../utils/search";
+
 
 export const CustomersPage: React.FC<{
   onNavigate: (page: string, data?: any) => void;
@@ -38,6 +40,7 @@ export const CustomersPage: React.FC<{
   const [stats, setStats] = useState<CustomerStats | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
   const customerInputRef = useRef<HTMLInputElement>(null);
+  
   type CustomerWithCount = Customer & { vehicle_count?: number };
   type CustomerStats = {
     total_customers: number;
@@ -242,16 +245,19 @@ export const CustomersPage: React.FC<{
     setShowCustomerDropdown(false);
   };
 
-  const filteredCustomersForVehicle = allCustomersForVehicleModal.filter(
-    (customer) =>
-      (customer.name || "")
-        .toLowerCase()
-        .includes(customerSearchTerm.toLowerCase()) ||
-      (customer.email || "")
-        .toLowerCase()
-        .includes(customerSearchTerm.toLowerCase()) ||
-      (customer.phone || "").includes(customerSearchTerm),
-  );
+const filteredCustomersForVehicle =
+  customerSearchTerm.trim() === ""
+    ? allCustomersForVehicleModal
+    : allCustomersForVehicleModal.filter((customer) =>
+        searchMatch(
+          customerSearchTerm,
+          customer.name,
+          customer.email,
+          customer.phone
+        )
+      );
+
+  
 
   const handleSaveVehicle = () => {
     loadCustomers();

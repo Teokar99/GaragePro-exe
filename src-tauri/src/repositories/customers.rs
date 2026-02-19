@@ -12,16 +12,23 @@ pub fn list_customers(
     let conn = get_connection()?;
     let offset = (page - 1) * per_page;
 
-    let (where_clause, search_param) = match search {
-        Some(s) if !s.is_empty() => {
-            let search_pattern = format!("%{}%", s);
-            (
-                "WHERE c.name LIKE ?1 OR c.email LIKE ?1 OR c.phone LIKE ?1 OR c.afm LIKE ?1",
-                Some(search_pattern),
-            )
-        }
-        _ => ("", None),
-    };
+let (where_clause, search_param) = match search {
+    Some(s) if !s.trim().is_empty() => {
+        let s_norm = crate::db::normalize_gr(s.trim());
+        let search_pattern = format!("%{}%", s_norm);
+
+        (
+            "WHERE c.name_search  LIKE ?1
+               OR c.email_search LIKE ?1
+               OR c.phone_search LIKE ?1
+               OR c.afm_search   LIKE ?1",
+            Some(search_pattern),
+        )
+    }
+    _ => ("", None),
+};
+
+
 
     let total: i32 = if let Some(ref param) = search_param {
         conn.query_row(
