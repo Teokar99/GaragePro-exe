@@ -1,21 +1,13 @@
+import { ChevronDown, Plus, Trash2, X } from "lucide-react";
 import React, { useState } from "react";
-import { X, Plus, Trash2, ChevronDown } from "lucide-react";
 import { servicesRepository } from "../../lib/repositories/servicesRepository";
-import { customersRepository } from "../../lib/repositories/customersRepository";
-import type { Customer } from "../../types";
 import { vehiclesRepository } from "../../lib/repositories/vehiclesRepository";
-import type { Vehicle } from "../../types";
-import {
-  calculateSubtotal,
-  calculateVAT,
-  calculateTotal,
-} from "../../lib/utils/calculations";
-import { logError, logInfo, getErrorMessage } from "../../utils/errorHandler";
+import type { Customer, Vehicle } from "../../types";
+import { getErrorMessage, logError } from "../../utils/errorHandler";
 import { VehicleForm } from "../vehicles/VehicleForm";
-import { invoke } from "@tauri-apps/api/tauri";
 
 interface ServiceLine {
-  id: number;
+  id: string;
   description: string;
   quantity: number;
   unit_price: number;
@@ -59,7 +51,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     notes: editingRecord?.notes || "",
     services: [
       {
-        id: Date.now(),
+        id: crypto.randomUUID(),
         description: "",
         quantity: 1,
         unit_price: 0,
@@ -145,12 +137,13 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     let editServices: ServiceLine[] = [];
 
     if (Array.isArray(editingRecord.services)) {
-      editServices = editingRecord.services.map((s: any, index: number) => ({
-        id: s.id ?? Date.now() + index,
-        description: s.description ?? "",
-        quantity: Number(s.quantity ?? 1),
-        unit_price: Number(s.unit_price ?? 0),
-      }));
+    editServices = editingRecord.services.map((service) => ({
+    id: crypto.randomUUID(),
+    description: service.description || '',
+    quantity: service.quantity || 1,
+    unit_price: service.unit_price || 0,
+}));
+
     } else if (typeof (editingRecord as any).services === "string") {
       try {
         const parsed = JSON.parse((editingRecord as any).services);
@@ -167,11 +160,12 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       }
     }
 
-    if (editServices.length === 0) {
-      editServices = [
-        { id: Date.now(), description: "", quantity: 1, unit_price: 0 },
-      ];
-    }
+if (editServices.length === 0) {
+  editServices = [
+    { id: crypto.randomUUID(), description: "", quantity: 1, unit_price: 0 },
+  ];
+}
+
 
     setFormData({
       vehicle_id: editingRecord.vehicle_id ?? "",
@@ -207,7 +201,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       services: [
         ...prev.services,
         {
-          id: Date.now(),
+          id: crypto.randomUUID(),
           description: "",
           quantity: 1,
           unit_price: 0,
@@ -216,21 +210,21 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     }));
   };
 
-  const removeServiceLine = (id: number) => {
+  const removeServiceLine = (id: string) => {
     setFormData((prev) => ({
       ...prev,
       services: prev.services.filter((s) => s.id !== id),
     }));
   };
 
-  const updateServiceLine = (id: number, field: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      services: prev.services.map((s) =>
-        s.id === id ? { ...s, [field]: value } : s,
-      ),
-    }));
-  };
+const updateServiceLine = (id: string, field: string, value: any) => {
+  setFormData((prev) => ({
+    ...prev,
+    services: prev.services.map((s) =>
+      s.id === id ? { ...s, [field]: value } : s
+    ),
+  }));
+};
 
   const subtotal = React.useMemo(() => {
     return formData.services.reduce((sum, line) => {
