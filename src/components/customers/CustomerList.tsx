@@ -1,12 +1,10 @@
-import React, { useState } from "react";
 import {
-  User,
+  Car,
   CreditCard as Edit3,
   Trash2,
-  Car,
-  ChevronDown,
-  ChevronUp,
+  User,
 } from "lucide-react";
+import React from "react";
 import type { Customer } from "../../types";
 
 interface CustomerListProps {
@@ -22,12 +20,6 @@ export const CustomerList: React.FC<CustomerListProps> = ({
   onDelete,
   canEdit = false,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const INITIAL_DISPLAY_COUNT = 3;
-  const displayedCustomers = isExpanded
-    ? customers
-    : customers.slice(0, INITIAL_DISPLAY_COUNT);
-  const hasMore = customers.length > INITIAL_DISPLAY_COUNT;
 
   if (customers.length === 0) {
     return (
@@ -45,12 +37,8 @@ export const CustomerList: React.FC<CustomerListProps> = ({
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600 overflow-hidden">
-      <div
-        className={`divide-y divide-gray-200 dark:divide-gray-600 ${
-          isExpanded ? "max-h-[600px] overflow-y-auto" : ""
-        }`}
-      >
-        {displayedCustomers.map((customer) => {
+    <div className="divide-y divide-gray-200 dark:divide-gray-600">
+        {customers.map((customer) => {
           const customerVehicles = customer.vehicles || [];
           return (
             <div
@@ -154,29 +142,6 @@ export const CustomerList: React.FC<CustomerListProps> = ({
           );
         })}
       </div>
-
-      {hasMore && (
-        <div className="border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="w-full py-4 px-6 flex items-center justify-center space-x-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors font-medium"
-          >
-            {isExpanded ? (
-              <>
-                <ChevronUp className="w-5 h-5" />
-                <span>Show Less</span>
-              </>
-            ) : (
-              <>
-                <ChevronDown className="w-5 h-5" />
-                <span>
-                  Show All ({customers.length - INITIAL_DISPLAY_COUNT} more)
-                </span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
     </div>
   );
 };
