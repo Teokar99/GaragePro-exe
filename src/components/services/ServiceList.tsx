@@ -1,7 +1,7 @@
+import { Calendar, Download, CreditCard as Edit3, FileText, Plus, Trash2 } from 'lucide-react';
 import React from 'react';
-import { Calendar, Download, FileText, Plus, CreditCard as Edit3, Trash2 } from 'lucide-react';
-import type { ServiceRecord, Vehicle } from '../../types';
 import { formatDate } from '../../lib/utils/formatters';
+import type { ServiceRecord, Vehicle } from '../../types';
 
 interface ServiceListProps {
   vehicle: Vehicle;
@@ -29,6 +29,11 @@ export const ServiceList: React.FC<ServiceListProps> = ({
     await onRefreshRecords();
     // Small delay to ensure state is updated
     setTimeout(() => {
+        console.log("PDF DATA vehicle", vehicle);
+        console.log("PDF DATA record", record);
+
+  // Αν το ΑΦΜ είναι στο customer, ίσως είναι κάπου εδώ ανάλογα τη δομή σου:
+  console.log("AFM (try)", (record as any)?.customer?.afm);
       onExportPDF(vehicle, record);
     }, 100);
   };

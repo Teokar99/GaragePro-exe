@@ -1,25 +1,25 @@
-import React, { useState, useEffect } from "react";
 import {
-  Plus,
-  Search,
   Calendar,
   Car,
-  User,
-  Euro,
-  CreditCard as Edit,
   Download,
-  Trash2,
-  X,
+  CreditCard as Edit,
+  Euro,
   Filter,
+  Plus,
+  Search,
+  Trash2,
+  User,
+  X,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ServiceForm } from "../components/services/ServiceForm";
+import { usePermissions } from "../hooks/usePermissions";
+import { exportWorkOrderPdf } from "../lib/pdf/exportWorkOrder";
+import { customersRepository } from "../lib/repositories/customersRepository";
 import { servicesRepository } from "../lib/repositories/servicesRepository";
 import { vehiclesRepository } from "../lib/repositories/vehiclesRepository";
-import { customersRepository } from "../lib/repositories/customersRepository";
-import { ServiceForm } from "../components/services/ServiceForm";
-import { exportWorkOrderPdf } from "../lib/pdf/exportWorkOrder";
-import type { Vehicle, Customer } from "../types";
+import type { Customer, Vehicle } from "../types";
 import { logError } from "../utils/errorHandler";
-import { usePermissions } from "../hooks/usePermissions";
 
 interface ServiceRecord {
   id: string;
@@ -271,16 +271,18 @@ export function ServicesPage() {
       console.log("ServicesPage customers loaded:", items.length);
 
       const mappedCustomers = items.map((customer: any) => ({
-        id: customer.id,
-        name: customer.name,
-        email: customer.email,
-        phone: customer.phone,
-        address: customer.address,
-        created_at: customer.created_at,
-        user_id: "",
-      }));
+      id: customer.id,
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      address: customer.address,
+      afm: customer.afm ?? null,
+      created_at: customer.created_at,
+      updated_at: customer.updated_at ?? customer.created_at,
+      user_id: customer.user_id ?? "",
+}));
 
-      setCustomers(mappedCustomers);
+setCustomers(mappedCustomers);
     } catch (err) {
       console.error("Error fetching customers (ServicesPage):", err);
       setCustomers([]);
