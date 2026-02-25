@@ -1,5 +1,6 @@
+
 import { AlertTriangle, Car, Users, Wrench } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { usePermissions } from "../hooks/usePermissions";
 import { dashboardRepository } from "../lib/repositories/dashboardRepository";
 import { logError } from "../utils/errorHandler";
@@ -7,18 +8,25 @@ import { logError } from "../utils/errorHandler";
 type UiStats = {
   customers: number;
   vehicles: number;
+  totalRevenue: number;
   monthlyServices: number;
+  
 };
 
-export const DashboardPage: React.FC = () => {
+export const DashboardPage: React.FC<{
+  onNavigate: (page: string, data?: any) => void;
+  navData?: { focus?: "recentServices"; refresh?: boolean } | null;
+}> = ({ onNavigate, navData }) => {
   const permissions = usePermissions();
 
   const [stats, setStats] = useState<UiStats>({
     customers: 0,
     vehicles: 0,
+    totalRevenue: 0,
     monthlyServices: 0,
   });
 
+  const recentServicesRef = useRef<HTMLDivElement>(null);
   const [recentServices, setRecentServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +60,12 @@ export const DashboardPage: React.FC = () => {
   };
 
   useEffect(() => {
+  if (navData?.refresh) {
+    loadDashboardData(); // αυτό είναι το function σου που κάνει getDashboardStats + getRecentServices
+  }
+}, [navData?.refresh]);
+
+  useEffect(() => {
     loadDashboardData().catch((err) => {
       logError("Dashboard loading failed", err);
       setError("Failed to load dashboard data");
@@ -59,6 +73,15 @@ export const DashboardPage: React.FC = () => {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+  if (navData?.focus === "recentServices") {
+    recentServicesRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+}, [navData?.focus]);
 
   if (loading) {
     return (
@@ -175,7 +198,10 @@ export const DashboardPage: React.FC = () => {
 )}
 
       <div className="grid grid-cols-1 gap-6">
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
+        <div
+  ref={recentServicesRef}
+  className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700"
+>
           <div className="p-6 border-b border-gray-200 dark:border-slate-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Recent Services
@@ -184,36 +210,40 @@ export const DashboardPage: React.FC = () => {
           <div className="p-6">
             {recentServices.length > 0 ? (
               <div className="space-y-4">
-                {recentServices.map((service) => (
-                  <div
-                    key={service.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {service.vehicle_year} {service.vehicle_make}{" "}
-                        {service.vehicle_model}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {service.customer_name} •{" "}
-                        {service.date
-                          ? new Date(service.date).toLocaleDateString()
-                          : "-"}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {service.description ?? ""}
-                      </p>
-                    </div>
+{recentServices.map((service) => (
+  <button
+    key={service.id}
+    type="button"
+    onClick={() => onNavigate("services", { openEditServiceId: service.id })}
+    className="w-full text-left flex items-center justify-between p-3 
+               bg-gray-50 dark:bg-slate-700 rounded-lg
+               hover:bg-gray-100 dark:hover:bg-slate-600
+               transition cursor-pointer"
+  >
+    <div>
+      <p className="font-medium text-gray-900 dark:text-white">
+        {service.vehicle_year} {service.vehicle_make} {service.vehicle_model}
+      </p>
 
-                    {permissions.canViewFinancials && (
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900 dark:text-white">
-                          €{(Number(service.total) || 0).toFixed(2)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        {service.customer_name} •{" "}
+        {service.date ? new Date(service.date).toLocaleDateString() : "-"}
+      </p>
+
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        {service.description ?? ""}
+      </p>
+    </div>
+
+    {permissions.canViewFinancials && (
+      <div className="text-right">
+        <p className="font-semibold text-gray-900 dark:text-white">
+          €{(Number(service.total) || 0).toFixed(2)}
+        </p>
+      </div>
+    )}
+  </button>
+))}
               </div>
             ) : (
               <p className="text-gray-500 dark:text-gray-400 text-center py-8">

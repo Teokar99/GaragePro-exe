@@ -45,7 +45,10 @@ interface ServiceRecord {
   };
 }
 
-export function ServicesPage() {
+export const ServicesPage: React.FC<{
+  onNavigate: (page: string, data?: any) => void;
+  navData?: { openEditServiceId?: string } | null;
+}> = ({ onNavigate, navData }) => {
   const permissions = usePermissions();
   const [services, setServices] = useState<ServiceRecord[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -63,12 +66,122 @@ export function ServicesPage() {
   const [recordsPerPage, setRecordsPerPage] = useState(50);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
-  const handleSaveService = async () => {
-    setShowForm(false);
-    setEditingRecord(null);
+  const [pendingEditId, setPendingEditId] = useState<string | null>(null);
+  const [isAutoOpening, setIsAutoOpening] = useState(false);
 
-    await fetchServices(); // ✅ refresh list immediately
+  const normalizeService = (service: any): ServiceRecord => {
+  const raw =
+    Array.isArray(service.services) ? service.services :
+    typeof service.services_json === "string" ? service.services_json :
+    typeof service.servicesJson === "string" ? service.servicesJson :
+    typeof service.services === "string" ? service.services :
+    null;
+
+  let linesRaw: any[] = [];
+  if (Array.isArray(raw)) linesRaw = raw;
+  else if (typeof raw === "string") {
+    try { linesRaw = JSON.parse(raw); } catch { linesRaw = []; }
+  }
+
+  const servicesLines = linesRaw.map((l: any, idx: number) => ({
+    id: l.id ?? Date.now() + idx,
+    description: l.description ?? "",
+    quantity: Number(l.quantity ?? 1),
+    unit_price: Number(l.unit_price ?? 0),
+  }));
+
+  const subtotal =
+    typeof service.subtotal === "number"
+      ? service.subtotal
+      : servicesLines.reduce(
+          (sum: number, l: any) =>
+            sum + (Number(l.quantity) || 0) * (Number(l.unit_price) || 0),
+          0,
+        );
+
+  const vat = typeof service.vat === "number" ? service.vat : subtotal * 0.24;
+  const total = typeof service.total === "number" ? service.total : subtotal + vat;
+
+  return {
+    id: service.id,
+    vehicle_id: service.vehicle_id,
+    date: service.date,
+    description: service.description,
+    mileage: service.mileage,
+    notes: service.notes,
+    services: servicesLines,
+    subtotal,
+    vat,
+    total,
+    vehicle: service.vehicle_id
+      ? {
+          id: service.vehicle_id,
+          make: service.vehicle_make ?? service.vehicle?.make,
+          model: service.vehicle_model ?? service.vehicle?.model,
+          year: service.vehicle_year ?? service.vehicle?.year,
+          license_plate: service.vehicle_license_plate ?? service.vehicle?.license_plate,
+          customer: service.customer_id
+            ? {
+                id: service.customer_id,
+                name: service.customer_name,
+                email: service.customer_email,
+                phone: service.customer_phone,
+              }
+            : service.vehicle?.customer,
+        }
+      : service.vehicle,
   };
+};
+// 1) Όταν έρθει id από Dashboard, αποθήκευσέ το
+useEffect(() => {
+  const id = navData?.openEditServiceId;
+  if (!id) return;
+  setPendingEditId(id);
+  setIsAutoOpening(true);
+  setShowForm(true);
+
+  fetchCustomers(); // βοηθάει στο form
+}, [navData?.openEditServiceId]);
+
+useEffect(() => {
+  const run = async () => {
+    if (!pendingEditId) return;
+
+    // 1) Try from currently loaded list
+    let record = services.find((s) => s.id === pendingEditId) ?? null;
+
+    // 2) If not found, fetch by id (safe for pagination/filters)
+    if (!record) {
+      try {
+        const raw = await servicesRepository.getService(pendingEditId);
+record = normalizeService(raw);
+      } catch (e) {
+        console.error("Failed to fetch service by id:", e);
+        setIsAutoOpening(false);
+        // αφήνουμε το modal ανοιχτό αλλά χωρίς record
+        return;
+      }
+    }
+
+    setEditingRecord(record);
+    setIsAutoOpening(false);
+    setPendingEditId(null);
+  };
+
+  run();
+}, [pendingEditId, services]);
+
+const handleSaveService = async () => {
+  setShowForm(false);
+  setEditingRecord(null);
+  setPendingEditId(null);
+  setIsAutoOpening(false);
+
+  await fetchServices(); // refresh services list tab (optional)
+
+  // ✅ πήγαινε dashboard (και optional: δώσε flag για scroll)
+  onNavigate("dashboard", { focus: "recentServices", refresh: true });
+};
 
   const handleVehiclesChanged = async (customerId: string) => {
     const items = await vehiclesRepository.listVehiclesByCustomer(customerId);
@@ -858,12 +971,20 @@ setCustomers(mappedCustomers);
 
       {/* Service Form Modal */}
       {showForm && (
+          editingRecord === null && isAutoOpening ? (
+    <div className="p-6">Loading service...</div>
+  ) : 
         <ServiceForm
           key={editingRecord ? editingRecord.id : "new"}
           vehicles={vehicles}
           customers={customers}
           editingRecord={editingRecord}
-          onClose={() => setShowForm(false)}
+       onClose={() => {
+  setShowForm(false);
+  setEditingRecord(null);
+  setPendingEditId(null);
+  setIsAutoOpening(false);
+}}
           onSave={handleSaveService}
           onVehiclesChanged={handleVehiclesChanged}
         />

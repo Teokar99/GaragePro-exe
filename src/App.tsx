@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { AuthProvider, useAuth } from './hooks/useAuth';
-import { authRepository } from './lib/repositories/authRepository';
+import { useEffect, useState } from 'react';
 import { FirstRunWizard } from './components/auth/FirstRunWizard';
 import { PINLogin } from './components/auth/PINLogin';
-import { useAutoLock } from './hooks/useAutoLock';
 import Layout from './components/Layout';
-import { DashboardPage } from './pages/DashboardPage';
-import { CustomersPage } from './pages/CustomersPage';
-import { ServicesPage } from './pages/ServicesPage';
-import { UsersPage } from './pages/UsersPage';
+import { AuthProvider, useAuth } from './hooks/useAuth';
+import { useAutoLock } from './hooks/useAutoLock';
+import { authRepository } from './lib/repositories/authRepository';
 import { DatabaseSeeder } from './mocks/DatabaseSeeder';
 import { AdminRevenuePage } from './pages/AdminRevenuePage';
+import { CustomersPage } from './pages/CustomersPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { ServicesPage } from './pages/ServicesPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { UsersPage } from './pages/UsersPage';
 
 function AutoLockWarning({ onDismiss, remainingTime }: { onDismiss: () => void; remainingTime: number }) {
   const minutes = Math.floor(remainingTime / 60000);
@@ -84,21 +84,22 @@ function AppContent() {
     checkFirstRun();
   }, []);
 
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.slice(1);
-      if (hash === '/customers') setCurrentPage('customers');
-      else if (hash === '/services') setCurrentPage('services');
-      else if (hash === '/users') setCurrentPage('users');
-      else if (hash === '/database') setCurrentPage('database');
-      else if (hash === '/revenue') setCurrentPage('revenue');
-      else if (hash === '/settings') setCurrentPage('settings');
-      else setCurrentPage('dashboard');
-    };
+useEffect(() => {
+  const handleHashChange = () => {
+    const hash = window.location.hash.slice(1);
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+    if (hash === '/customers') setCurrentPage('customers');
+    else if (hash === '/services') setCurrentPage('services');
+    else if (hash === '/users') setCurrentPage('users');
+    else if (hash === '/database') setCurrentPage('database');
+    else if (hash === '/revenue') setCurrentPage('revenue');
+    else if (hash === '/settings') setCurrentPage('settings');
+    else setCurrentPage('dashboard');
+  };
+
+  window.addEventListener('hashchange', handleHashChange);
+  return () => window.removeEventListener('hashchange', handleHashChange);
+}, []);
 
   if (checkingFirstRun || loading) {
     return (
@@ -125,22 +126,24 @@ function AppContent() {
     return <PINLogin />;
   }
 
-  const navigate = (page: string, data?: any) => {
-    setCurrentPage(page);
-    setPageData(data);
+const navigate = (page: string, data?: any) => {
+  // ΠΡΩΤΑ σώσε το payload
+  console.log("[NAVIGATE] page:", page, "data:", data);
+  setPageData(data ?? null);
 
-    const hash = page === 'dashboard' ? '' : `#/${page}`;
-    window.location.hash = hash;
-  };
+  // ΜΗΝ κάνεις setCurrentPage εδώ
+  const hash = page === "dashboard" ? "" : `#/${page}`;
+  window.location.hash = hash;
+};
 
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <DashboardPage />;
+        return <DashboardPage onNavigate={navigate} navData={pageData} />;
       case 'customers':
         return <CustomersPage onNavigate={navigate} />;
       case 'services':
-        return <ServicesPage />;
+        return <ServicesPage onNavigate={navigate} navData={pageData} />;
       case 'users':
         return <UsersPage />;
       case 'database':
@@ -150,7 +153,7 @@ function AppContent() {
       case 'settings':
         return <SettingsPage />;
       default:
-        return <DashboardPage />;
+        return <DashboardPage onNavigate={navigate} />;
     }
   };
 

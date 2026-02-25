@@ -56,7 +56,7 @@ pub fn get_recent_services(limit: u32) -> Result<Vec<ServiceRecordWithDetails>> 
          FROM service_records sr
          INNER JOIN vehicles v ON sr.vehicle_id = v.id
          INNER JOIN customers c ON v.customer_id = c.id
-         ORDER BY sr.date DESC
+        ORDER BY COALESCE(sr.updated_at, sr.created_at) DESC, sr.date DESC
          LIMIT ?1",
     )?;
 
