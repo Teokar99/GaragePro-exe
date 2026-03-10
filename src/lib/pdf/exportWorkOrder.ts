@@ -1,8 +1,8 @@
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import type { Customer, Vehicle, ServiceRecord } from "../../types";
-import { servicesRepository } from "../repositories/servicesRepository";
+import type { Customer, ServiceRecord, Vehicle } from "../../types";
 import { logError, logInfo } from "../../utils/errorHandler";
+import { servicesRepository } from "../repositories/servicesRepository";
 
 export const exportWorkOrderPdf = async (
   customer: Customer,
@@ -286,6 +286,17 @@ function generatePage1HTML(
   border-top: 1px solid #e2e8f0;
   padding-top: 15px;
 }
+
+.disclaimer {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 10px;
+  color: #6b7280;
+  line-height: 1.5;
+  text-align: center;
+  font-style: italic;
+}
 </style>
 
 <div class="pdf-container" lang="el">
@@ -372,6 +383,7 @@ function generatePage1HTML(
     <p>Αυτό το έγγραφο δημιουργήθηκε αυτόματα από το σύστημα διαχείρισης εργασιών.</p>
     <p>Εντολή Εργασίας ID: ${record.id}</p>
     <p>Ημερομηνία Δημιουργίας: ${currentDate}</p>
+    <div class="disclaimer">Το παρόν έγγραφο αποτελεί δελτίο/σύνοψη εργασιών και εκδίδεται αποκλειστικά για ενημερωτικούς σκοπούς. Δεν αποτελεί νόμιμη απόδειξη, τιμολόγιο ή άλλο φορολογικό παραστατικό.</div>
   </div>
 </div>
 `;
@@ -497,6 +509,17 @@ function generateServicesPageHTML(
   border-top: 1px solid #e2e8f0;
   padding-top: 15px;
 }
+
+.disclaimer {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 10px;
+  color: #6b7280;
+  line-height: 1.5;
+  text-align: center;
+  font-style: italic;
+}
 </style>
 
 <div class="pdf-container" lang="el">
@@ -527,6 +550,7 @@ function generateServicesPageHTML(
   <div class="footer">
     <p>Εντολή Εργασίας ID: ${record.id}</p>
     <p>Ημερομηνία Δημιουργίας: ${currentDate}</p>
+    <div class="disclaimer">Το παρόν έγγραφο αποτελεί δελτίο/σύνοψη εργασιών και εκδίδεται αποκλειστικά για ενημερωτικούς σκοπούς. Δεν αποτελεί νόμιμη απόδειξη, τιμολόγιο ή άλλο φορολογικό παραστατικό.</div>
   </div>
 </div>
 `;
@@ -653,6 +677,17 @@ function generatePage2HTML(record: ServiceRecord): string {
   border-top: 1px solid #e2e8f0;
   padding-top: 15px;
 }
+
+.disclaimer {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 10px;
+  color: #6b7280;
+  line-height: 1.5;
+  text-align: center;
+  font-style: italic;
+}
 </style>
 
 <div class="pdf-container" lang="el">
@@ -686,6 +721,7 @@ function generatePage2HTML(record: ServiceRecord): string {
   <div class="footer">
     <p>Εντολή Εργασίας ID: ${record.id} - Σελίδα 2</p>
     <p>Ημερομηνία Δημιουργίας: ${currentDate}</p>
+    <div class="disclaimer">Το παρόν έγγραφο αποτελεί δελτίο/σύνοψη εργασιών και εκδίδεται αποκλειστικά για ενημερωτικούς σκοπούς. Δεν αποτελεί νόμιμη απόδειξη, τιμολόγιο ή άλλο φορολογικό παραστατικό.</div>
   </div>
 </div>
 `;
