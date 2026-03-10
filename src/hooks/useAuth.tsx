@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authRepository } from '../lib/repositories/authRepository';
-import { logError, logInfo, getErrorMessage } from '../utils/errorHandler';
+import { getErrorMessage, logError, logInfo } from '../utils/errorHandler';
 
 export interface User {
   id: string;
@@ -93,19 +93,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       const response = await authRepository.setupAdminPin(fullName, pin);
 
-      if (!response.success || !response.user) {
+      if (!response.success) {
         logError('Setup failed', response.error || response.message || 'Unknown error');
         return { error: response.error || response.message || 'Setup failed' };
       }
 
-      setUser({
-        id: response.user.id,
-        full_name: response.user.full_name,
-        role: response.user.role,
-        email: response.user.email,
-      });
-
-      logInfo('Admin setup successful:', response.user.full_name);
+      logInfo('Admin setup successful:', fullName);
       return {};
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);

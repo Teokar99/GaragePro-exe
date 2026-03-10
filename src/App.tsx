@@ -112,15 +112,13 @@ useEffect(() => {
     );
   }
 
-  if (isFirstRun) {
-    return (
-      <FirstRunWizard
-        onComplete={() => {
-          setIsFirstRun(false);
-        }}
-      />
-    );
-  }
+if (isFirstRun) {
+  return (
+    <FirstRunWizard
+      onComplete={() => setIsFirstRun(false)}
+    />
+  );
+}
 
   if (!user) {
     return <PINLogin />;

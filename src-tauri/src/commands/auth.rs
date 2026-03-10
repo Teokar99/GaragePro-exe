@@ -15,13 +15,21 @@ pub fn check_first_run() -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub fn setup_admin_pin(full_name: String, pin: String) -> Result<User, String> {
+pub fn setup_admin_pin(full_name: String, pin: String, state: State<AppState>) -> Result<AuthResponse, String> {
     let app_user = auth::create_admin(full_name, pin).map_err(|e| e.to_string())?;
 
-    Ok(User {
+    let user = User {
         id: app_user.id,
         full_name: app_user.full_name,
         role: app_user.role,
+    };
+
+    state.set_user(Some(user.clone()));
+
+    Ok(AuthResponse {
+        success: true,
+        user: Some(user),
+        message: None,
     })
 }
 
