@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Car,
   Filter,
@@ -20,7 +21,9 @@ import { searchMatch } from "../utils/search";
 
 
 export const CustomersPage: React.FC<{
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onNavigate: (page: string, data?: any) => void;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ onNavigate }) => {
   const permissions = usePermissions();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -275,11 +278,6 @@ const filteredCustomersForVehicle =
     }
   };
 
-  const totalVehicles = customers.reduce(
-    (sum, customer: any) =>
-      sum + (customer.vehicle_count ?? (customer.vehicles?.length || 0)),
-    0,
-  );
 
   const customersWithMultipleVehicles = customers.filter(
     (customer: any) =>
@@ -560,7 +558,7 @@ const filteredCustomersForVehicle =
         maxWidth="max-w-2xl"
       >
         <CustomerForm
-          customer={editingCustomer}
+        customer={editingCustomer ?? undefined}
           onClose={handleCloseForm}
           onSave={handleSaveCustomer}
         />

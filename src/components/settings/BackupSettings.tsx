@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
-import { Download, Upload, Clock, HardDrive, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Download, HardDrive, Upload, } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import type { BackupInfo } from '../../types/tauri';
 import { Modal } from '../ui/Modal';
 

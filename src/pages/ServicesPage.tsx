@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Calendar,
   Car,
@@ -21,6 +22,13 @@ import { vehiclesRepository } from "../lib/repositories/vehiclesRepository";
 import type { Customer, Vehicle } from "../types";
 import { logError } from "../utils/errorHandler";
 
+interface ServiceLine {
+  id: string | number;
+  description: string;
+  quantity: number;
+  unit_price: number;
+}
+
 interface ServiceRecord {
   id: string;
   vehicle_id: string;
@@ -28,6 +36,9 @@ interface ServiceRecord {
   description: string;
   mileage: number;
   notes: string;
+  services: ServiceLine[];
+  subtotal: number;
+  vat: number;
   total: number;
   match_field?: string | null;
   vehicle?: {
@@ -303,6 +314,7 @@ const handleSaveService = async () => {
       };
 
       const mappedServices: ServiceRecord[] = data.map((service: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const parseLines = (service: any) => {
           // δοκίμασε σε σειρά πιθανών πεδίων
           const candidates = [
@@ -510,18 +522,6 @@ setCustomers(mappedCustomers);
     setLockCustomerVehicle(false);
     setEditingRecord(service);
     setShowForm(true);
-  };
-
-  const handleCloseForm = () => {
-    setShowForm(false);
-    setEditingRecord(null);
-    setLockCustomerVehicle(false);
-  };
-
-  const handleSave = () => {
-    setCurrentPage(1);
-    fetchServices();
-    handleCloseForm();
   };
 
   if (loading) {

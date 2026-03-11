@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 
 export const PINLogin: React.FC = () => {
@@ -34,8 +34,9 @@ export const PINLogin: React.FC = () => {
         setError(result.error);
         setPin('');
       }
-    } catch (err) {
-      setError('An unexpected error occurred');
+} catch (err) {
+  console.error(err);
+  setError('An unexpected error occurred');
       setPin('');
     } finally {
       setIsSubmitting(false);

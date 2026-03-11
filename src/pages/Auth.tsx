@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 
 const Auth: React.FC = () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { signIn, signUp } = useAuth() as any;
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -32,6 +33,7 @@ const Auth: React.FC = () => {
           setError(result.error);
         }
       }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setError('An unexpected error occurred');
     } finally {

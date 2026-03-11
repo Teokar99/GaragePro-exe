@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from "react";
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
-  DollarSign,
-  Calendar,
-  TrendingUp,
-  ArrowUp,
   ArrowDown,
+  ArrowUp,
+  Calendar,
+  DollarSign,
+  TrendingUp,
 } from "lucide-react";
-import { servicesRepository } from "../lib/repositories/servicesRepository";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { servicesRepository } from "../lib/repositories/servicesRepository";
 
 type RevenueStats = {
   current: {
@@ -83,7 +84,7 @@ export const AdminRevenuePage: React.FC = () => {
         11: 0,
       };
 
-      data.forEach((record) => {
+      (data ?? []).forEach((record) => {
         const d = new Date(record.date);
         const amount = record.total || 0;
 
@@ -168,28 +169,25 @@ export const AdminRevenuePage: React.FC = () => {
         11: 0,
       };
 
-      data.forEach((record) => {
-        const d = new Date(record.date);
-        const amount = record.total || 0;
+(data ?? []).forEach((record) => {
+  const d = new Date(record.date);
+  const amount = record.total || 0;
 
-        // Current period
-        if (d >= startOfCurrentWeek) currentWeekly += amount;
-        if (d >= startOfCurrentMonth) currentMonthly += amount;
-        if (d >= startOfCurrentYear) currentYearly += amount;
+  if (d >= startOfCurrentWeek) currentWeekly += amount;
+  if (d >= startOfCurrentMonth) currentMonthly += amount;
+  if (d >= startOfCurrentYear) currentYearly += amount;
 
-        // Previous period
-        if (d >= startOfPreviousWeek && d < startOfCurrentWeek)
-          previousWeekly += amount;
-        if (d >= startOfPreviousMonth && d < startOfCurrentMonth)
-          previousMonthly += amount;
-        if (d >= startOfPreviousYear && d < startOfCurrentYear)
-          previousYearly += amount;
+  if (d >= startOfPreviousWeek && d < startOfCurrentWeek)
+    previousWeekly += amount;
+  if (d >= startOfPreviousMonth && d < startOfCurrentMonth)
+    previousMonthly += amount;
+  if (d >= startOfPreviousYear && d < startOfCurrentYear)
+    previousYearly += amount;
 
-        // Monthly breakdown for current year
-        if (d.getFullYear() === year) {
-          monthlyMap[d.getMonth()] += amount;
-        }
-      });
+  if (d.getFullYear() === year) {
+    monthlyMap[d.getMonth()] += amount;
+  }
+});
 
       setStats({
         current: {

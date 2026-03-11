@@ -66,6 +66,7 @@ function AppContent() {
     if (hash === '/settings') return 'settings';
     return 'dashboard';
   });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pageData, setPageData] = useState<any>(null);
 
   useEffect(() => {
@@ -124,6 +125,7 @@ if (isFirstRun) {
     return <PINLogin />;
   }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const navigate = (page: string, data?: any) => {
   // ΠΡΩΤΑ σώσε το payload
   console.log("[NAVIGATE] page:", page, "data:", data);

@@ -33,6 +33,7 @@ export const ServiceList: React.FC<ServiceListProps> = ({
         console.log("PDF DATA record", record);
 
   // Αν το ΑΦΜ είναι στο customer, ίσως είναι κάπου εδώ ανάλογα τη δομή σου:
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   console.log("AFM (try)", (record as any)?.customer?.afm);
       onExportPDF(vehicle, record);
     }, 100);

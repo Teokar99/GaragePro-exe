@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from './useAuth';
 
 const TIMEOUT_DURATION = 15 * 60 * 1000;
@@ -19,8 +19,8 @@ export const useAutoLock = (options: AutoLockOptions = {}) => {
 
   const { user, logout } = useAuth();
   const [showWarning, setShowWarning] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const warningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimers = useCallback(() => {
     if (timeoutRef.current) {
@@ -66,7 +66,7 @@ export const useAutoLock = (options: AutoLockOptions = {}) => {
 
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
 
-    let throttleTimeout: NodeJS.Timeout | null = null;
+    let throttleTimeout: ReturnType<typeof setTimeout> | null = null;
     const throttledResetTimer = () => {
       if (!throttleTimeout) {
         throttleTimeout = setTimeout(() => {

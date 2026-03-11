@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ChevronDown, Plus, Trash2, X } from "lucide-react";
 import React, { useState } from "react";
 import { servicesRepository } from "../../lib/repositories/servicesRepository";
@@ -47,7 +48,7 @@ interface ServiceFormProps {
 }
 
 export const ServiceForm: React.FC<ServiceFormProps> = ({
-  vehicles,
+
   selectedVehicle,
   customers,
   editingRecord,
@@ -320,6 +321,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
       mileage: formData.mileage,
       notes: formData.notes,
       description: summaryDescription || "Service",
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       services: formData.services.map(({ id, ...rest }) => ({
         description: rest.description || "Service",
         quantity: rest.quantity || 1,

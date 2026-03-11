@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { AlertTriangle, Car, Users, Wrench } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";

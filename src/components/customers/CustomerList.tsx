@@ -103,6 +103,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({
 
                   {(() => {
                     const vehicleCount =
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       (customer as any).vehicle_count ??
                       (customerVehicles?.length || 0);
 

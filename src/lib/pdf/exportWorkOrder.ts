@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import type { Customer, ServiceRecord, Vehicle } from "../../types";

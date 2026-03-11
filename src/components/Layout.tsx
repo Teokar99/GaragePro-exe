@@ -1,21 +1,20 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "../hooks/useAuth";
-import { usePermissions } from "../hooks/usePermissions";
 import {
+  Database,
+  DollarSign,
   LayoutDashboard,
-  Users,
-  Package,
-  Wrench,
   LogOut,
   Menu,
-  X,
-  Sun,
   Moon,
-  Database,
-  UserCog,
-  DollarSign,
   Settings,
+  Sun,
+  UserCog,
+  Users,
+  Wrench,
+  X
 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useAuth } from "../hooks/useAuth";
+import { usePermissions } from "../hooks/usePermissions";
 
 interface LayoutProps {
   children: React.ReactNode;

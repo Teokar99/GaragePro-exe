@@ -50,9 +50,10 @@ export const FirstRunWizard: React.FC<FirstRunWizardProps> = ({ onComplete }) =>
       } else {
         onComplete();
       }
-    } catch (err) {
-      setError('An unexpected error occurred');
-    } finally {
+} catch (err: unknown) {
+  console.error(err);
+  setError('An unexpected error occurred');
+} finally {
       setIsSubmitting(false);
     }
   };
