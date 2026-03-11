@@ -214,16 +214,57 @@ export const DashboardPage: React.FC<{
   <button
     key={service.id}
     type="button"
-    onClick={() => onNavigate("services", { openEditServiceId: service.id })}
-    className="w-full text-left flex items-center justify-between p-3 
+    onClick={() =>
+      onNavigate("services", {
+        openEditServiceId: service.id,
+        lockCustomerVehicle: true,
+        customer: {
+          id: service.customer_id,
+          name: service.customer_name,
+          email: service.customer_email,
+          phone: service.customer_phone,
+        },
+        vehicle: {
+          id: service.vehicle_id,
+          make: service.vehicle_make,
+          model: service.vehicle_model,
+          year: service.vehicle_year,
+          license_plate: service.vehicle_license_plate,
+        },
+      })
+    }
+    className="w-full text-left flex items-center justify-between gap-4 p-3
                bg-gray-50 dark:bg-slate-700 rounded-lg
                hover:bg-gray-100 dark:hover:bg-slate-600
                transition cursor-pointer"
   >
-    <div>
-      <p className="font-medium text-gray-900 dark:text-white">
-        {service.vehicle_year} {service.vehicle_make} {service.vehicle_model}
-      </p>
+    <div className="min-w-0 flex-1">
+      <div className="flex items-center gap-2 flex-wrap">
+        <p className="font-medium text-gray-900 dark:text-white">
+          {service.vehicle_year} {service.vehicle_make} {service.vehicle_model}
+        </p>
+
+        {service.vehicle_license_plate && (
+          <button
+            type="button"
+            onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                await navigator.clipboard.writeText(service.vehicle_license_plate);
+              } catch (err) {
+                console.error("Failed to copy license plate", err);
+              }
+            }}
+            title={`Copy license plate ${service.vehicle_license_plate}`}
+            className="shrink-0 rounded-md border border-gray-300 dark:border-slate-500
+                       bg-white dark:bg-slate-800 px-2 py-0.5 text-xs font-semibold
+                       text-gray-700 dark:text-gray-200
+                       hover:bg-gray-100 dark:hover:bg-slate-600"
+          >
+            {service.vehicle_license_plate}
+          </button>
+        )}
+      </div>
 
       <p className="text-sm text-gray-600 dark:text-gray-400">
         {service.customer_name} •{" "}
@@ -236,7 +277,7 @@ export const DashboardPage: React.FC<{
     </div>
 
     {permissions.canViewFinancials && (
-      <div className="text-right">
+      <div className="text-right shrink-0">
         <p className="font-semibold text-gray-900 dark:text-white">
           €{(Number(service.total) || 0).toFixed(2)}
         </p>

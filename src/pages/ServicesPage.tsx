@@ -45,9 +45,27 @@ interface ServiceRecord {
   };
 }
 
+type EditServiceNavData = {
+  openEditServiceId?: string;
+  lockCustomerVehicle?: boolean;
+  customer?: {
+    id?: string;
+    name?: string;
+    email?: string | null;
+    phone?: string | null;
+  };
+  vehicle?: {
+    id?: string;
+    make?: string;
+    model?: string;
+    year?: number;
+    license_plate?: string | null;
+  };
+} | null;
+
 export const ServicesPage: React.FC<{
   onNavigate: (page: string, data?: any) => void;
-  navData?: { openEditServiceId?: string } | null;
+  navData?: EditServiceNavData;
 }> = ({ onNavigate, navData }) => {
   const permissions = usePermissions();
   const [services, setServices] = useState<ServiceRecord[]>([]);
@@ -68,6 +86,34 @@ export const ServicesPage: React.FC<{
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [pendingEditId, setPendingEditId] = useState<string | null>(null);
   const [isAutoOpening, setIsAutoOpening] = useState(false);
+  const [lockCustomerVehicle, setLockCustomerVehicle] = useState(false);
+
+  const mergeDashboardPrefill = (record: ServiceRecord | null): ServiceRecord | null => {
+    if (!record) return record;
+
+    const navVehicle = navData?.vehicle;
+    const navCustomer = navData?.customer;
+
+    return {
+      ...record,
+      vehicle: {
+        id: record.vehicle?.id ?? navVehicle?.id ?? record.vehicle_id,
+        make: record.vehicle?.make ?? navVehicle?.make ?? "",
+        model: record.vehicle?.model ?? navVehicle?.model ?? "",
+        year: record.vehicle?.year ?? navVehicle?.year ?? 0,
+        license_plate:
+          record.vehicle?.license_plate ?? navVehicle?.license_plate ?? null,
+        customer: {
+          id: record.vehicle?.customer?.id ?? navCustomer?.id ?? "",
+          name: record.vehicle?.customer?.name ?? navCustomer?.name ?? "",
+          email:
+            record.vehicle?.customer?.email ?? navCustomer?.email ?? null,
+          phone:
+            record.vehicle?.customer?.phone ?? navCustomer?.phone ?? null,
+        },
+      },
+    };
+  };
 
   const normalizeService = (service: any): ServiceRecord => {
   const raw =
@@ -138,10 +184,11 @@ useEffect(() => {
   if (!id) return;
   setPendingEditId(id);
   setIsAutoOpening(true);
+  setLockCustomerVehicle(Boolean(navData?.lockCustomerVehicle));
   setShowForm(true);
 
   fetchCustomers(); // βοηθάει στο form
-}, [navData?.openEditServiceId]);
+}, [navData?.lockCustomerVehicle, navData?.openEditServiceId]);
 
 useEffect(() => {
   const run = async () => {
@@ -163,7 +210,7 @@ record = normalizeService(raw);
       }
     }
 
-    setEditingRecord(record);
+    setEditingRecord(mergeDashboardPrefill(record));
     setIsAutoOpening(false);
     setPendingEditId(null);
   };
@@ -176,6 +223,7 @@ const handleSaveService = async () => {
   setEditingRecord(null);
   setPendingEditId(null);
   setIsAutoOpening(false);
+  setLockCustomerVehicle(false);
 
   await fetchServices(); // refresh services list tab (optional)
 
@@ -459,6 +507,7 @@ setCustomers(mappedCustomers);
   };
 
   const handleEdit = (service: ServiceRecord) => {
+    setLockCustomerVehicle(false);
     setEditingRecord(service);
     setShowForm(true);
   };
@@ -466,6 +515,7 @@ setCustomers(mappedCustomers);
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingRecord(null);
+    setLockCustomerVehicle(false);
   };
 
   const handleSave = () => {
@@ -534,6 +584,7 @@ setCustomers(mappedCustomers);
         {permissions.canEditServices && (
           <button
             onClick={async () => {
+              setLockCustomerVehicle(false);
               await fetchCustomers(); // φόρτωσε customers
               setEditingRecord(null); // ✅ καθάρισε edit mode
               setShowForm(true); // άνοιξε modal
@@ -979,11 +1030,13 @@ setCustomers(mappedCustomers);
           vehicles={vehicles}
           customers={customers}
           editingRecord={editingRecord}
+          lockCustomerVehicle={lockCustomerVehicle}
        onClose={() => {
   setShowForm(false);
   setEditingRecord(null);
   setPendingEditId(null);
   setIsAutoOpening(false);
+  setLockCustomerVehicle(false);
 }}
           onSave={handleSaveService}
           onVehiclesChanged={handleVehiclesChanged}

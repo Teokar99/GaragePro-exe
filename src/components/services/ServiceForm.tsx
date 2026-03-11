@@ -21,12 +21,26 @@ type ServiceFormEditingRecord = {
   description?: string;
   total?: number;
   services?: { description: string; quantity: number; unit_price: number }[];
+  vehicle?: {
+    id: string;
+    make: string;
+    model: string;
+    year: number;
+    license_plate?: string | null;
+    customer?: {
+      id: string;
+      name: string;
+      email?: string | null;
+      phone?: string | null;
+    };
+  };
 };
 interface ServiceFormProps {
   vehicles: Vehicle[];
   customers: Customer[]; // 👈 ΠΡΟΣΘΗΚΗ
   editingRecord?: ServiceFormEditingRecord | null;
   selectedVehicle?: Vehicle | null;
+  lockCustomerVehicle?: boolean;
   onClose: () => void;
   onSave: () => void;
   onVehiclesChanged: (customerId: string) => Promise<void> | void;
@@ -37,10 +51,30 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   selectedVehicle,
   customers,
   editingRecord,
+  lockCustomerVehicle = false,
   onVehiclesChanged,
   onClose,
   onSave,
 }) => {
+  const formatVehicleLabel = (vehicle?: {
+    year?: number | null;
+    make?: string | null;
+    model?: string | null;
+    license_plate?: string | null;
+  } | null) => {
+    if (!vehicle) return "";
+
+    const main = [vehicle.year, vehicle.make, vehicle.model]
+      .filter((part) => part !== undefined && part !== null && `${part}`.trim() !== "")
+      .join(" ");
+
+    if (vehicle.license_plate) {
+      return main ? `${main} - ${vehicle.license_plate}` : vehicle.license_plate;
+    }
+
+    return main;
+  };
+
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [formData, setFormData] = useState({
     vehicle_id: editingRecord?.vehicle_id || selectedVehicle?.id || "",
@@ -70,6 +104,19 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   React.useEffect(() => {
     setAllCustomers(customers ?? []);
   }, [customers]);
+
+  React.useEffect(() => {
+    if (!selectedCustomerId || customerSearchInput.trim() !== "") return;
+
+    const matchedCustomer = customers.find(
+      (customer) => customer.id === selectedCustomerId,
+    );
+
+    if (matchedCustomer?.name) {
+      setCustomerSearchInput(matchedCustomer.name);
+    }
+  }, [customerSearchInput, customers, selectedCustomerId]);
+
   React.useEffect(() => {
     console.log("ServiceForm customers prop:", customers?.length);
     console.log("ServiceForm allCustomers:", allCustomers.length);
@@ -174,6 +221,13 @@ if (editServices.length === 0) {
       notes: editingRecord.notes ?? "",
       services: editServices,
     });
+
+    const customer = editingRecord.vehicle?.customer;
+    const vehicle = editingRecord.vehicle;
+
+    setSelectedCustomerId(customer?.id ?? "");
+    setCustomerSearchInput(customer?.name ?? "");
+    setVehicleSearchInput(formatVehicleLabel(vehicle));
   }, [editingRecord]);
 
   // Close dropdown when clicking outside
@@ -322,15 +376,18 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                       placeholder="🔍 Search customer (name, phone, email)..."
                       value={customerSearchInput}
                       onChange={(e) => setCustomerSearchInput(e.target.value)}
-                      onFocus={() => setShowCustomerDropdown(true)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      onFocus={() =>
+                        !lockCustomerVehicle && setShowCustomerDropdown(true)
+                      }
+                      readOnly={lockCustomerVehicle}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white read-only:bg-gray-100 read-only:cursor-not-allowed"
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                       <ChevronDown className="w-4 h-4 text-gray-400" />
                     </div>
                   </div>
 
-                  {showCustomerDropdown && (
+                  {showCustomerDropdown && !lockCustomerVehicle && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                       {filteredCustomers.length > 0 ? (
                         filteredCustomers
@@ -383,17 +440,20 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                       value={vehicleSearchInput}
                       onChange={(e) => setVehicleSearchInput(e.target.value)}
                       onFocus={() =>
-                        selectedCustomerId && setShowVehicleDropdown(true)
+                        !lockCustomerVehicle &&
+                        selectedCustomerId &&
+                        setShowVehicleDropdown(true)
                       }
+                      readOnly={lockCustomerVehicle}
                       disabled={!selectedCustomerId}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white disabled:bg-gray-100 disabled:cursor-not-allowed read-only:bg-gray-100 read-only:cursor-not-allowed"
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                       <ChevronDown className="w-4 h-4 text-gray-400" />
                     </div>
                   </div>
 
-                  {showVehicleDropdown && selectedCustomerId && (
+                  {showVehicleDropdown && selectedCustomerId && !lockCustomerVehicle && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                       {filteredVehicles.length > 0 ? (
                         filteredVehicles
@@ -411,9 +471,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                                   ...formData,
                                   vehicle_id: vehicle.id,
                                 });
-                                setVehicleSearchInput(
-                                  `${vehicle.year} ${vehicle.make} ${vehicle.model}${vehicle.license_plate ? ` - ${vehicle.license_plate}` : ""}`,
-                                );
+                                setVehicleSearchInput(formatVehicleLabel(vehicle));
                                 setShowVehicleDropdown(false);
                               }}
                               className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors border-b border-gray-100 last:border-b-0"
@@ -442,17 +500,17 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                     <div className="text-sm text-green-800">
                       <strong>Selected:</strong>{" "}
                       {(() => {
-                        const vehicle = filteredVehicles.find(
-                          (v) => v.id === formData.vehicle_id,
-                        );
-                        return vehicle
-                          ? `${vehicle.year} ${vehicle.make} ${vehicle.model}${vehicle.license_plate ? ` - ${vehicle.license_plate}` : ""}`
-                          : "";
+                        const vehicle =
+                          filteredVehicles.find((v) => v.id === formData.vehicle_id) ??
+                          (editingRecord?.vehicle?.id === formData.vehicle_id
+                            ? editingRecord.vehicle
+                            : undefined);
+                        return formatVehicleLabel(vehicle);
                       })()}
                     </div>
                   </div>
                 )}
-                {selectedCustomerId && filteredVehicles.length > 0 && (
+                {selectedCustomerId && filteredVehicles.length > 0 && !lockCustomerVehicle && (
                   <div className="mt-2 flex items-center justify-between">
                     <p className="text-sm text-green-600 flex items-center">
                       <svg
@@ -493,7 +551,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                     </button>
                   </div>
                 )}
-                {!selectedCustomerId && (
+                {!selectedCustomerId && !lockCustomerVehicle && (
                   <p className="text-sm text-amber-600 mt-2 flex items-center">
                     <svg
                       className="w-4 h-4 mr-1"
@@ -511,7 +569,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                     Please select a customer first
                   </p>
                 )}
-                {selectedCustomerId && filteredVehicles.length === 0 && (
+                {selectedCustomerId && filteredVehicles.length === 0 && !lockCustomerVehicle && (
                   <p className="text-sm text-orange-600 mt-2 flex items-center">
                     <svg
                       className="w-4 h-4 mr-1"
