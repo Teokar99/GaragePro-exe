@@ -309,8 +309,8 @@ function generatePage1HTML(
       ΓΕΝΙΚΟ ΣΥΝΕΡΓΕΙΟ / ΗΛΕΚΤΡΟΛΟΓΕΙΟ
     </div>
     <div class="company-details">
-      Τηλ: 802705280 | Κιν: 2106611800 | Email: carabetsos@yahoo.com<br>
-      Διεύθυνση: Αγίας 15, Αθήνα, 15344
+      Τηλ: 2106611800 |ΑΦΜ 802705280 | ΔΟΥ: ΚΕΦΟΔΕ ΑΤΤΙΚΗΣ<br>
+      Διεύθυνση: ΕΥΒΟΙΑΣ 15, ΓΕΡΑΚΑΣ 15344
     </div>
     <div class="work-order-title">Εντολή Εργασίας</div>
     <div class="date">${currentDate}</div>
