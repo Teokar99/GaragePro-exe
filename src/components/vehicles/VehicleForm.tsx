@@ -15,6 +15,7 @@ export type VehicleInput = {
   year: number;
   license_plate?: string | null;
   vin?: string | null;
+  engine_code?: string | null;
 };
 
 interface VehicleFormProps {
@@ -34,6 +35,7 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
     year: new Date().getFullYear(),
     license_plate: "",
     vin: "",
+    engine_code: "",
   });
 
   const makeOptions = useMemo(() => getAllMakes(), []);
@@ -54,6 +56,7 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
         year: formData.year,
         license_plate: formData.license_plate || null,
         vin: reminderOrNull(formData.vin),
+        engine_code: reminderOrNull(formData.engine_code),
       });
 
       setFormData({
@@ -62,6 +65,7 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
         year: new Date().getFullYear(),
         license_plate: "",
         vin: "",
+        engine_code: "",
       });
       onSave();
       onClose();
@@ -149,6 +153,19 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           placeholder="17-character VIN"
           maxLength={17}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Engine Code
+        </label>
+        <input
+          type="text"
+          value={formData.engine_code}
+          onChange={(e) => setFormData({ ...formData, engine_code: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="e.g. 1NZ-FE, N47D20, M271"
         />
       </div>
 

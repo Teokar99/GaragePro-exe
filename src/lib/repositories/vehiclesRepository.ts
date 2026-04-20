@@ -1,5 +1,9 @@
 import { invoke } from "@tauri-apps/api/tauri";
-import { TauriVehicle, TauriVehicleWithCustomer } from "../../types/tauri";
+import {
+  TauriPaginatedResult,
+  TauriVehicle,
+  TauriVehicleWithCustomer,
+} from "../../types/tauri";
 import type { Vehicle } from "../../types/vehicle";
 
 const mapTauriVehicleToVehicle = (v: TauriVehicle): Vehicle => ({
@@ -10,6 +14,7 @@ const mapTauriVehicleToVehicle = (v: TauriVehicle): Vehicle => ({
   year: v.year,
   license_plate: v.license_plate ?? null,
   vin: v.vin ?? null,
+  engine_code: v.engine_code ?? null,
   created_at: v.created_at ?? new Date().toISOString(),
 });
 
@@ -20,6 +25,7 @@ export interface VehicleInput {
   year: number;
   license_plate?: string | null;
   vin?: string | null;
+  engine_code?: string | null;
 }
 
 export const vehiclesRepository = {
@@ -31,6 +37,7 @@ export const vehiclesRepository = {
       year: data.year,
       licensePlate: data.license_plate || null,
       vin: data.vin || null,
+      engineCode: data.engine_code || null,
     });
 
     return mapTauriVehicleToVehicle(created);
@@ -53,6 +60,7 @@ export const vehiclesRepository = {
       year: data.year,
       licensePlate: data.license_plate || null,
       vin: data.vin || null,
+      engineCode: data.engine_code || null,
     });
 
     return mapTauriVehicleToVehicle(updated);
@@ -66,5 +74,20 @@ export const vehiclesRepository = {
     return await invoke<TauriVehicleWithCustomer>("get_vehicle_with_customer", {
       id,
     });
+  },
+
+  async listVehicles(
+    search: string = "",
+    page: number = 1,
+    perPage: number = 20,
+  ): Promise<TauriPaginatedResult<TauriVehicleWithCustomer>> {
+    return await invoke<TauriPaginatedResult<TauriVehicleWithCustomer>>(
+      "list_vehicles",
+      {
+        search: search || null,
+        page,
+        perPage,
+      },
+    );
   },
 };

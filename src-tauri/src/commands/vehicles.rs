@@ -1,5 +1,14 @@
-use crate::models::{Vehicle, VehicleWithCustomer};
+use crate::models::{PaginatedResult, Vehicle, VehicleWithCustomer};
 use crate::repositories::vehicles;
+
+#[tauri::command]
+pub fn list_vehicles(
+    search: Option<String>,
+    page: u32,
+    per_page: u32,
+) -> Result<PaginatedResult<VehicleWithCustomer>, String> {
+    vehicles::list_vehicles(search, page, per_page).map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub fn create_vehicle(
@@ -9,8 +18,9 @@ pub fn create_vehicle(
     year: i32,
     license_plate: Option<String>,
     vin: Option<String>,
+    engine_code: Option<String>,
 ) -> Result<Vehicle, String> {
-    vehicles::create_vehicle(customer_id, make, model, year, license_plate, vin)
+    vehicles::create_vehicle(customer_id, make, model, year, license_plate, vin, engine_code)
         .map_err(|e| e.to_string())
 }
 
@@ -32,8 +42,10 @@ pub fn update_vehicle(
     year: i32,
     license_plate: Option<String>,
     vin: Option<String>,
+    engine_code: Option<String>,
 ) -> Result<Vehicle, String> {
-    vehicles::update_vehicle(id, make, model, year, license_plate, vin).map_err(|e| e.to_string())
+    vehicles::update_vehicle(id, make, model, year, license_plate, vin, engine_code)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

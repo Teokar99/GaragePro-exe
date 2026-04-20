@@ -50,6 +50,12 @@ pub fn initialize_db() -> Result<()> {
 
     conn.execute_batch(SCHEMA_SQL)?;
     migrate_customers_search_columns(&conn)?;
+    migrate_vehicles_engine_code(&conn)?;
+    Ok(())
+}
+
+pub fn migrate_vehicles_engine_code(conn: &Connection) -> rusqlite::Result<()> {
+    let _ = conn.execute("ALTER TABLE vehicles ADD COLUMN engine_code TEXT", []);
     Ok(())
 }
 
@@ -130,6 +136,7 @@ pub fn get_connection() -> Result<Connection> {
     conn.pragma_update(None, "busy_timeout", 5000)?;
 
     migrate_customers_search_columns(&conn)?;
+    migrate_vehicles_engine_code(&conn)?;
 
     if customers_search_needs_backfill(&conn)? {
         println!("[GaragePro][DB] Running customers search backfill...");

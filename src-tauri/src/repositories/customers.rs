@@ -305,8 +305,9 @@ pub fn get_customer_with_vehicles(id: String) -> Result<Option<CustomerWithVehic
                         year: row.get(4)?,
                         license_plate: row.get(5)?,
                         vin: row.get(6)?,
-                        created_at: row.get(7)?,
-                        updated_at: row.get(8)?,
+                        engine_code: row.get(7)?,
+                        created_at: row.get(8)?,
+                        updated_at: row.get(9)?,
                     })
                 })?
                 .collect::<Result<Vec<Vehicle>>>()?;

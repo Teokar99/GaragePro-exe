@@ -42,6 +42,7 @@ pub struct Vehicle {
     pub year: i32,
     pub license_plate: Option<String>,
     pub vin: Option<String>,
+    pub engine_code: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -55,11 +56,13 @@ pub struct VehicleWithCustomer {
     pub year: i32,
     pub license_plate: Option<String>,
     pub vin: Option<String>,
+    pub engine_code: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     pub customer_name: String,
     pub customer_email: Option<String>,
     pub customer_phone: Option<String>,
+    pub last_mileage: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

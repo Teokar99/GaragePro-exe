@@ -35,12 +35,16 @@ export interface TauriVehicle {
   year: number;
   license_plate: string | null;
   vin: string | null;
+  engine_code: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface TauriVehicleWithCustomer extends TauriVehicle {
   customer_name: string;
+  customer_email: string | null;
+  customer_phone: string | null;
+  last_mileage: number | null;
 }
 
 export interface TauriCustomerWithVehicles extends TauriCustomer {

@@ -12,6 +12,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ServicesPage } from './pages/ServicesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { UsersPage } from './pages/UsersPage';
+import { VehiclesPage } from './pages/VehiclesPage';
 
 function AutoLockWarning({ onDismiss, remainingTime }: { onDismiss: () => void; remainingTime: number }) {
   const minutes = Math.floor(remainingTime / 60000);
@@ -59,6 +60,7 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState(() => {
     const hash = window.location.hash.slice(1);
     if (hash === '/customers') return 'customers';
+    if (hash === '/vehicles') return 'vehicles';
     if (hash === '/services') return 'services';
     if (hash === '/users') return 'users';
     if (hash === '/database') return 'database';
@@ -90,6 +92,7 @@ useEffect(() => {
     const hash = window.location.hash.slice(1);
 
     if (hash === '/customers') setCurrentPage('customers');
+    else if (hash === '/vehicles') setCurrentPage('vehicles');
     else if (hash === '/services') setCurrentPage('services');
     else if (hash === '/users') setCurrentPage('users');
     else if (hash === '/database') setCurrentPage('database');
@@ -142,6 +145,8 @@ const navigate = (page: string, data?: any) => {
         return <DashboardPage onNavigate={navigate} navData={pageData} />;
       case 'customers':
         return <CustomersPage onNavigate={navigate} />;
+      case 'vehicles':
+        return <VehiclesPage onNavigate={navigate} navData={pageData} />;
       case 'services':
         return <ServicesPage onNavigate={navigate} navData={pageData} />;
       case 'users':

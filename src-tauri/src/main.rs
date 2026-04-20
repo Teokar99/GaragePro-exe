@@ -38,6 +38,7 @@ fn main() {
       commands::customers::update_customer,
       commands::customers::delete_customer,
       commands::customers::get_customer_with_vehicles,
+      commands::vehicles::list_vehicles,
       commands::vehicles::create_vehicle,
       commands::vehicles::list_vehicles_by_customer,
       commands::vehicles::get_vehicle,

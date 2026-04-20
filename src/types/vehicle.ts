@@ -8,6 +8,7 @@ export interface Vehicle {
   model: string;
   year: number;
   vin?: string | null;
+  engine_code?: string | null;
   license_plate?: string | null;
   created_at: string;
   customer?: Customer;

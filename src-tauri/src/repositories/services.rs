@@ -63,9 +63,9 @@ pub fn list_services(
 
     let (where_clause, search_param) = match search {
         Some(s) if !s.is_empty() => {
-            let search_pattern = format!("%{}%", s);
+            let search_pattern = format!("%{}%", crate::db::normalize_gr(s.trim()));
             (
-                "WHERE c.name LIKE ?1 OR v.make LIKE ?1 OR v.model LIKE ?1 OR v.license_plate LIKE ?1 OR sr.description LIKE ?1",
+                "WHERE c.name_search LIKE ?1 OR v.make LIKE ?1 OR v.model LIKE ?1 OR v.license_plate LIKE ?1 OR sr.description LIKE ?1",
                 Some(search_pattern),
             )
         }

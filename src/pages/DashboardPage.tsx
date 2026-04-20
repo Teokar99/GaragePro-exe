@@ -158,7 +158,14 @@ export const DashboardPage: React.FC<{
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700">
+        <button
+          type="button"
+          onClick={() => onNavigate("vehicles")}
+          className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700
+                     text-left w-full cursor-pointer
+                     hover:border-green-400 dark:hover:border-green-500
+                     hover:shadow-md transition-all"
+        >
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-green-500/20 rounded-lg">
               <Car className="w-6 h-6 text-green-500" />
@@ -172,7 +179,7 @@ export const DashboardPage: React.FC<{
               </p>
             </div>
           </div>
-        </div>
+        </button>
       </div>
 
 {permissions.canViewFinancials && (

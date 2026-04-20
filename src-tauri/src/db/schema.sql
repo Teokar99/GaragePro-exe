@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
     year INTEGER NOT NULL,
     license_plate TEXT,
     vin TEXT,
+    engine_code TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE

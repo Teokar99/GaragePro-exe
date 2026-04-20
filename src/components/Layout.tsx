@@ -1,4 +1,5 @@
 import {
+  Car,
   Database,
   DollarSign,
   LayoutDashboard,
@@ -62,6 +63,12 @@ const Layout: React.FC<LayoutProps> = ({
       name: "Customers",
       icon: Users,
       page: "customers",
+      requiresPermission: "canViewCustomers",
+    },
+    {
+      name: "Vehicles",
+      icon: Car,
+      page: "vehicles",
       requiresPermission: "canViewCustomers",
     },
     {
