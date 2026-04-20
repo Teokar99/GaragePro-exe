@@ -227,6 +227,7 @@ record = normalizeService(raw);
   };
 
   run();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [pendingEditId, services]);
 
 const handleSaveService = async () => {
@@ -257,16 +258,19 @@ const handleSaveService = async () => {
       }
     };
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (loading) return;
     setCurrentPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, searchField, filterBy]);
 
   useEffect(() => {
     if (loading) return;
     fetchServices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, recordsPerPage, searchTerm, searchField, filterBy]);
 
   const fetchServices = async () => {
@@ -314,35 +318,6 @@ const handleSaveService = async () => {
       };
 
       const mappedServices: ServiceRecord[] = data.map((service: any) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const parseLines = (service: any) => {
-          // δοκίμασε σε σειρά πιθανών πεδίων
-          const candidates = [
-            service.services_json,
-            service.servicesJson,
-            service.services,
-            service.services_json_text,
-            service.services_json_string,
-          ];
-
-          const raw = candidates.find((x) => x !== undefined && x !== null);
-
-          if (!raw) return [];
-
-          if (Array.isArray(raw)) return raw;
-
-          if (typeof raw === "string") {
-            try {
-              const parsed = JSON.parse(raw);
-              return Array.isArray(parsed) ? parsed : [];
-            } catch {
-              return [];
-            }
-          }
-
-          return [];
-        };
-
         const linesRaw = parseServiceLines(service);
 
         if (linesRaw.length === 0) {

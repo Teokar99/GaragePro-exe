@@ -21,7 +21,6 @@ import { searchMatch } from "../utils/search";
 
 
 export const CustomersPage: React.FC<{
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onNavigate: (page: string, data?: any) => void;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ onNavigate }) => {
@@ -120,6 +119,7 @@ export const CustomersPage: React.FC<{
       }
     };
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -128,6 +128,7 @@ export const CustomersPage: React.FC<{
 
   useEffect(() => {
     loadCustomers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, recordsPerPage, searchTerm, filterStatus]);
 
   const loadCustomers = async () => {

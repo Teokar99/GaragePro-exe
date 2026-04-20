@@ -7,7 +7,7 @@ import { TauriVehicleWithCustomer } from "../types/tauri";
 export const VehiclesPage: React.FC<{
   onNavigate: (page: string, data?: any) => void;
   navData?: any;
-}> = ({ onNavigate: _onNavigate }) => {
+}> = () => {
   const [vehicles, setVehicles] = useState<TauriVehicleWithCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState("");

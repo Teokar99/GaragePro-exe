@@ -60,7 +60,7 @@ export const AdminRevenuePage: React.FC = () => {
     if (user?.role === "admin") {
       loadMonthlyRevenueForYear(selectedYear);
     }
-  }, [selectedYear]);
+  }, [selectedYear, user?.role]);
 
   const loadMonthlyRevenueForYear = async (year: number) => {
     try {

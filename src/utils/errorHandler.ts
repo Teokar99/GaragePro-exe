@@ -17,14 +17,10 @@ export const getErrorMessage = (error: unknown): string => {
   if (typeof error === "string") return error;
 
   if (error && typeof error === "object") {
-    const e = error as any;
-    return (
-      e.message ||
-      e.error ||
-      e.cause ||
-      (typeof e.toString === "function" ? e.toString() : "") ||
-      JSON.stringify(error)
-    );
+    const e = error as { message?: unknown; error?: unknown; cause?: unknown };
+    const candidate = e.message ?? e.error ?? e.cause;
+    if (typeof candidate === "string" && candidate) return candidate;
+    return String(error) || JSON.stringify(error);
   }
 
   return String(error);
@@ -38,5 +34,5 @@ export const handleDatabaseError = (error: unknown, operation: string): void => 
     throw new Error('Network error: Unable to connect to the server. Please check your internet connection and try again.');
   }
 
-  throw new Error(`Error during ${operation}: ${errorMessage}`, { cause: error as any });
+  throw new Error(`Error during ${operation}: ${errorMessage}`, { cause: error });
 };

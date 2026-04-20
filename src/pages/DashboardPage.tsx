@@ -72,7 +72,6 @@ export const DashboardPage: React.FC<{
       setError("Failed to load dashboard data");
       setLoading(false);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
