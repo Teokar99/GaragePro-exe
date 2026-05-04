@@ -673,6 +673,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                               type="number"
                               min={1}
                               value={service.quantity}
+                              onFocus={(e) => e.target.select()}
                               onChange={(e) =>
                                 updateServiceLine(
                                   service.id,
@@ -689,6 +690,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                               min={0}
                               step="0.01"
                               value={service.unit_price}
+                              onFocus={(e) => e.target.select()}
                               onChange={(e) =>
                                 updateServiceLine(
                                   service.id,
@@ -757,6 +759,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                   type="number"
                   min={0}
                   value={formData.mileage}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) =>
                     setFormData({
                       ...formData,

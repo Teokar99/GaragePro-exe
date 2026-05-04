@@ -1,5 +1,6 @@
 import React from 'react';
 import { BackupSettings } from '../components/settings/BackupSettings';
+import { CustomCarDataSettings } from '../components/settings/CustomCarDataSettings';
 
 export const SettingsPage: React.FC = () => {
   return (
@@ -9,6 +10,7 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       <BackupSettings />
+      <CustomCarDataSettings />
     </div>
   );
 };

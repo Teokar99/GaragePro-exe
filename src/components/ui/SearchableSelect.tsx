@@ -11,6 +11,7 @@ type Props = {
   required?: boolean;
   label?: string;
   allowCustom?: boolean;
+  onAddCustom?: (value: string) => void;
 };
 
 export const SearchableSelect: React.FC<Props> = ({
@@ -22,6 +23,7 @@ export const SearchableSelect: React.FC<Props> = ({
   required = false,
   label,
   allowCustom = false,
+  onAddCustom,
 }) => {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -46,10 +48,18 @@ export const SearchableSelect: React.FC<Props> = ({
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, []);
 
+  const showAddRow =
+    allowCustom &&
+    searchTerm.trim().length > 0 &&
+    !filteredOptions.some(
+      (o) => o.toLowerCase() === searchTerm.trim().toLowerCase(),
+    );
+
   // Keep highlighted index valid
   useEffect(() => {
-    if (highlightedIndex >= filteredOptions.length) setHighlightedIndex(0);
-  }, [filteredOptions.length, highlightedIndex]);
+    const max = filteredOptions.length + (showAddRow ? 1 : 0);
+    if (highlightedIndex >= max) setHighlightedIndex(0);
+  }, [filteredOptions.length, highlightedIndex, showAddRow]);
 
   const open = () => {
     if (disabled) return;
@@ -87,9 +97,10 @@ export const SearchableSelect: React.FC<Props> = ({
       case "ArrowDown":
         e.preventDefault();
         setIsOpen(true);
-        setHighlightedIndex((i) =>
-          Math.min(i + 1, Math.max(filteredOptions.length - 1, 0)),
-        );
+        setHighlightedIndex((i) => {
+          const max = filteredOptions.length - 1 + (showAddRow ? 1 : 0);
+          return Math.min(i + 1, Math.max(max, 0));
+        });
         break;
       case "ArrowUp":
         e.preventDefault();
@@ -103,17 +114,24 @@ export const SearchableSelect: React.FC<Props> = ({
         }
         e.preventDefault();
 
-        // Αν υπάρχει highlighted option, πάρε αυτό
         if (filteredOptions[highlightedIndex]) {
           selectValue(filteredOptions[highlightedIndex]);
           return;
         }
 
-        // Αλλιώς, αν επιτρέπεται custom, πάρε ό,τι έγραψε ο user
+        // Add row is highlighted or allowCustom fallback
+        if (showAddRow && highlightedIndex === filteredOptions.length) {
+          const typed = searchTerm.trim();
+          selectValue(typed);
+          onAddCustom?.(typed);
+          return;
+        }
+
         if (allowCustom) {
           const typed = searchTerm.trim();
           if (typed.length > 0) {
             selectValue(typed);
+            onAddCustom?.(typed);
           }
         }
         break;
@@ -184,7 +202,7 @@ export const SearchableSelect: React.FC<Props> = ({
         {isOpen && !disabled ? (
           <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-lg">
             <div className="max-h-56 overflow-auto py-1">
-              {filteredOptions.length === 0 ? (
+              {filteredOptions.length === 0 && !showAddRow ? (
                 <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-300">
                   No results found
                 </div>
@@ -217,6 +235,31 @@ export const SearchableSelect: React.FC<Props> = ({
                   );
                 })
               )}
+              {showAddRow ? (
+                <button
+                  type="button"
+                  onMouseEnter={() => setHighlightedIndex(filteredOptions.length)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const typed = searchTerm.trim();
+                    selectValue(typed);
+                    onAddCustom?.(typed);
+                  }}
+                  className={[
+                    "w-full text-left px-3 py-2 text-sm text-blue-600 dark:text-blue-400",
+                    filteredOptions.length > 0
+                      ? "border-t border-gray-100 dark:border-gray-600"
+                      : "",
+                    highlightedIndex === filteredOptions.length
+                      ? "bg-blue-50 dark:bg-blue-900/30"
+                      : "",
+                    "hover:bg-blue-50 dark:hover:bg-blue-900/30",
+                  ].join(" ")}
+                >
+                  + Add "{searchTerm.trim()}"
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}

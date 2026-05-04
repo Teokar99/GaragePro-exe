@@ -58,6 +58,14 @@ CREATE TABLE IF NOT EXISTS service_records (
     FOREIGN KEY(vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
 );
 
+-- Custom Car Data Table
+CREATE TABLE IF NOT EXISTS custom_car_data (
+    id TEXT PRIMARY KEY,
+    make TEXT NOT NULL,
+    model TEXT,
+    created_at TEXT NOT NULL
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
 CREATE INDEX IF NOT EXISTS idx_vehicles_customer_id ON vehicles(customer_id);

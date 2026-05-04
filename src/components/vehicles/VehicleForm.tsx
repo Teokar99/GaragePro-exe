@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { customCarDataRepository } from "../../lib/repositories/customCarDataRepository";
 import { vehiclesRepository } from "../../lib/repositories/vehiclesRepository";
 import { logError } from "../../utils/errorHandler";
 import { SearchableSelect } from "../ui/SearchableSelect";
@@ -38,12 +39,49 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
     engine_code: "",
   });
 
-  const makeOptions = useMemo(() => getAllMakes(), []);
+  const [customMakes, setCustomMakes] = useState<string[]>([]);
+  const [customModelsByMake, setCustomModelsByMake] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    customCarDataRepository.getAllCustomMakes().then(setCustomMakes).catch(() => {});
+  }, []);
+
+  const makeOptions = useMemo(() => {
+    const all = new Set([...getAllMakes(), ...customMakes]);
+    return Array.from(all).sort((a, b) => a.localeCompare(b));
+  }, [customMakes]);
+
   const yearOptions = useMemo(() => generateYearOptions(), []);
 
   const modelOptions = useMemo(() => {
-    return getModelsForMake(formData.make);
-  }, [formData.make]);
+    const staticModels = getModelsForMake(formData.make);
+    const custom = customModelsByMake[formData.make] ?? [];
+    const all = new Set([...staticModels, ...custom]);
+    return Array.from(all).sort((a, b) => a.localeCompare(b));
+  }, [formData.make, customModelsByMake]);
+
+  const handleAddCustomMake = async (make: string) => {
+    try {
+      await customCarDataRepository.addCustomEntry(make, null);
+      setCustomMakes((prev) => Array.from(new Set([...prev, make])));
+    } catch (e) {
+      logError("Failed to save custom make", e);
+    }
+  };
+
+  const handleAddCustomModel = async (model: string) => {
+    const make = formData.make;
+    if (!make) return;
+    try {
+      await customCarDataRepository.addCustomEntry(make, model);
+      setCustomModelsByMake((prev) => ({
+        ...prev,
+        [make]: Array.from(new Set([...(prev[make] ?? []), model])),
+      }));
+    } catch (e) {
+      logError("Failed to save custom model", e);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +129,8 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
           }
           options={makeOptions}
           placeholder="Select make..."
+          allowCustom
+          onAddCustom={handleAddCustomMake}
         />
       </div>
 
@@ -103,6 +143,8 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
           options={modelOptions}
           placeholder={formData.make ? "Select model..." : "Select make first"}
           disabled={!formData.make}
+          allowCustom={!!formData.make}
+          onAddCustom={handleAddCustomModel}
         />
         {!formData.make ? (
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">

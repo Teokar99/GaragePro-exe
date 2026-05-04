@@ -51,11 +51,26 @@ pub fn initialize_db() -> Result<()> {
     conn.execute_batch(SCHEMA_SQL)?;
     migrate_customers_search_columns(&conn)?;
     migrate_vehicles_engine_code(&conn)?;
+    migrate_custom_car_data(&conn)?;
     Ok(())
 }
 
 pub fn migrate_vehicles_engine_code(conn: &Connection) -> rusqlite::Result<()> {
     let _ = conn.execute("ALTER TABLE vehicles ADD COLUMN engine_code TEXT", []);
+    Ok(())
+}
+
+pub fn migrate_custom_car_data(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS custom_car_data (
+            id TEXT PRIMARY KEY,
+            make TEXT NOT NULL,
+            model TEXT,
+            created_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_car_data_make_model
+            ON custom_car_data(make, COALESCE(model, ''));",
+    )?;
     Ok(())
 }
 
@@ -137,6 +152,7 @@ pub fn get_connection() -> Result<Connection> {
 
     migrate_customers_search_columns(&conn)?;
     migrate_vehicles_engine_code(&conn)?;
+    migrate_custom_car_data(&conn)?;
 
     if customers_search_needs_backfill(&conn)? {
         println!("[GaragePro][DB] Running customers search backfill...");
