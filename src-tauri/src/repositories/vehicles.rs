@@ -16,10 +16,14 @@ pub fn create_vehicle(
     let id = generate_uuid();
     let now = Utc::now().to_rfc3339();
 
+    let license_plate_search = license_plate
+        .as_deref()
+        .map(|p| crate::db::normalize_gr(p));
+
     conn.execute(
-        "INSERT INTO vehicles (id, customer_id, make, model, year, license_plate, vin, engine_code, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-        rusqlite::params![&id, &customer_id, &make, &model, &year, &license_plate, &vin, &engine_code, &now, &now],
+        "INSERT INTO vehicles (id, customer_id, make, model, year, license_plate, license_plate_search, vin, engine_code, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        rusqlite::params![&id, &customer_id, &make, &model, &year, &license_plate, &license_plate_search, &vin, &engine_code, &now, &now],
     )?;
 
     Ok(Vehicle {
@@ -113,10 +117,14 @@ pub fn update_vehicle(
     let conn = get_connection()?;
     let updated_at = Utc::now().to_rfc3339();
 
+    let license_plate_search = license_plate
+        .as_deref()
+        .map(|p| crate::db::normalize_gr(p));
+
     conn.execute(
-        "UPDATE vehicles SET make = ?1, model = ?2, year = ?3, license_plate = ?4, vin = ?5, engine_code = ?6, updated_at = ?7
-         WHERE id = ?8",
-        rusqlite::params![&make, &model, &year, &license_plate, &vin, &engine_code, &updated_at, &id],
+        "UPDATE vehicles SET make = ?1, model = ?2, year = ?3, license_plate = ?4, license_plate_search = ?5, vin = ?6, engine_code = ?7, updated_at = ?8
+         WHERE id = ?9",
+        rusqlite::params![&make, &model, &year, &license_plate, &license_plate_search, &vin, &engine_code, &updated_at, &id],
     )?;
 
     let vehicle = conn.query_row(
@@ -177,7 +185,7 @@ pub fn list_vehicles(
                  INNER JOIN customers c ON v.customer_id = c.id
                  WHERE c.name_search LIKE ?1 OR c.phone_search LIKE ?1 OR c.email_search LIKE ?1
                     OR v.make LIKE ?1 OR v.model LIKE ?1
-                    OR v.license_plate LIKE ?1 OR v.vin LIKE ?1
+                    OR v.license_plate_search LIKE ?1 OR v.vin LIKE ?1
                     OR v.engine_code LIKE ?1",
                 rusqlite::params![&pattern],
                 |row| row.get(0),
@@ -194,7 +202,7 @@ pub fn list_vehicles(
                  INNER JOIN customers c ON v.customer_id = c.id
                  WHERE c.name_search LIKE ?1 OR c.phone_search LIKE ?1 OR c.email_search LIKE ?1
                     OR v.make LIKE ?1 OR v.model LIKE ?1
-                    OR v.license_plate LIKE ?1 OR v.vin LIKE ?1
+                    OR v.license_plate_search LIKE ?1 OR v.vin LIKE ?1
                     OR v.engine_code LIKE ?1
                  ORDER BY c.name ASC, v.created_at DESC
                  LIMIT ?2 OFFSET ?3",

@@ -18,6 +18,7 @@ pub fn normalize_gr(input: &str) -> String {
             'ό' | 'ο' | 'Ό' | 'Ο' => 'ο',
             'ύ' | 'ϋ' | 'ΰ' | 'υ' | 'Ύ' | 'Ϋ' => 'υ',
             'ώ' | 'ω' | 'Ώ' | 'Ω' => 'ω',
+            'ς' => 'σ', // final sigma → regular sigma so caps/lowercase match
             _ => ch.to_lowercase().next().unwrap_or(ch),
         };
         out.push(mapped);
@@ -53,11 +54,38 @@ pub fn initialize_db() -> Result<()> {
     migrate_vehicles_engine_code(&conn)?;
     migrate_custom_car_data(&conn)?;
     migrate_service_records_description_search(&conn)?;
+    migrate_vehicles_license_plate_search(&conn)?;
+    migrate_sigma_normalization(&conn)?;
     Ok(())
 }
 
 pub fn migrate_vehicles_engine_code(conn: &Connection) -> rusqlite::Result<()> {
     let _ = conn.execute("ALTER TABLE vehicles ADD COLUMN engine_code TEXT", []);
+    Ok(())
+}
+
+pub fn migrate_vehicles_license_plate_search(conn: &Connection) -> rusqlite::Result<()> {
+    let _ = conn.execute("ALTER TABLE vehicles ADD COLUMN license_plate_search TEXT", []);
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_vehicles_license_plate_search ON vehicles(license_plate_search)",
+        [],
+    );
+    // Backfill existing rows
+    let plates: Vec<(String, String)> = {
+        let mut stmt = conn.prepare(
+            "SELECT id, license_plate FROM vehicles WHERE license_plate_search IS NULL AND license_plate IS NOT NULL",
+        )?;
+        let collected = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        collected
+    };
+    for (id, plate) in plates {
+        let plate_search = normalize_gr(&plate);
+        conn.execute(
+            "UPDATE vehicles SET license_plate_search = ?1 WHERE id = ?2",
+            rusqlite::params![plate_search, id],
+        )?;
+    }
     Ok(())
 }
 
@@ -87,6 +115,32 @@ pub fn backfill_service_records_description_search(conn: &Connection) -> rusqlit
             rusqlite::params![description_search, id],
         )?;
     }
+    Ok(())
+}
+
+pub fn migrate_sigma_normalization(conn: &Connection) -> rusqlite::Result<()> {
+    // Replace final sigma ς→σ in all search columns so uppercase/lowercase Greek matches correctly.
+    // ς (U+03C2) never lowercases to σ (U+03C3) in Unicode, so ΓΙΩΡΓΟΣ and Γιώργος would
+    // produce different search tokens without this fix.
+    conn.execute_batch(
+        "UPDATE customers
+         SET name_search  = replace(name_search,  'ς', 'σ'),
+             email_search = replace(email_search, 'ς', 'σ'),
+             phone_search = replace(phone_search, 'ς', 'σ'),
+             afm_search   = replace(afm_search,   'ς', 'σ')
+         WHERE name_search  LIKE '%ς%'
+            OR email_search LIKE '%ς%'
+            OR phone_search LIKE '%ς%'
+            OR afm_search   LIKE '%ς%';
+
+         UPDATE vehicles
+         SET license_plate_search = replace(license_plate_search, 'ς', 'σ')
+         WHERE license_plate_search LIKE '%ς%';
+
+         UPDATE service_records
+         SET description_search = replace(description_search, 'ς', 'σ')
+         WHERE description_search LIKE '%ς%';"
+    )?;
     Ok(())
 }
 
@@ -184,6 +238,7 @@ pub fn get_connection() -> Result<Connection> {
     migrate_vehicles_engine_code(&conn)?;
     migrate_custom_car_data(&conn)?;
     migrate_service_records_description_search(&conn)?;
+    migrate_vehicles_license_plate_search(&conn)?;
 
     if customers_search_needs_backfill(&conn)? {
         println!("[GaragePro][DB] Running customers search backfill...");
@@ -191,6 +246,7 @@ pub fn get_connection() -> Result<Connection> {
     }
 
     backfill_service_records_description_search(&conn)?;
+    migrate_sigma_normalization(&conn)?;
 
     Ok(conn)
 }

@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
     model TEXT NOT NULL,
     year INTEGER NOT NULL,
     license_plate TEXT,
+    license_plate_search TEXT,
     vin TEXT,
     engine_code TEXT,
     created_at TEXT NOT NULL,
