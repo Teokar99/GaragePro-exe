@@ -22,6 +22,8 @@ rusqlite = { version = "0.31", features = ["bundled", "backup"] }
 argon2 = "0.5"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.6", features = ["v4", "serde"] }
+log = "0.4"
+simplelog = "0.12"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

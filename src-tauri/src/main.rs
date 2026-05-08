@@ -4,6 +4,7 @@
 mod backup;
 mod commands;
 mod db;
+mod logging;
 mod models;
 mod repositories;
 mod state;
@@ -11,10 +12,15 @@ mod state;
 use state::AppState;
 
 fn main() {
-  db::initialize_db().expect("Failed to initialize database");
+  logging::init_logging();
+
+  if let Err(e) = db::initialize_db() {
+    log::error!("Failed to initialize database: {}", e);
+    panic!("Failed to initialize database: {}", e);
+  }
 
   if let Err(e) = backup::check_and_create_backup() {
-    eprintln!("Warning: Failed to create automatic backup: {}", e);
+    log::warn!("Failed to create automatic backup: {}", e);
   }
 
   tauri::Builder::default()
@@ -56,6 +62,8 @@ fn main() {
       commands::services::get_service,
       commands::services::list_services_by_vehicle,
       commands::customers::get_customer_stats,
+      commands::logging::log_to_file,
+      commands::logging::get_log_path,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -5,7 +5,7 @@ use rusqlite::Result;
 
 fn parse_services_json(services_json: &str) -> Vec<ServiceItem> {
     // Πρώτη προσπάθεια: όπως είναι
-    println!("parse_services_json called, len={}", services_json.len());
+    log::debug!("parse_services_json called, len={}", services_json.len());
     if let Ok(items) = serde_json::from_str::<Vec<ServiceItem>>(services_json) {
         return items;
     }

@@ -36,14 +36,13 @@ pub fn get_db_path() -> PathBuf {
     }
 
     path.push("app.db");
-     // ✅ DEBUG: δείχνει ΠΑΝΤΑ το πραγματικό path της βάσης
-    println!("[GaragePro][DB] Using database at: {}", path.display());
+    log::info!("Database path: {}", path.display());
     path
 }
 
 pub fn initialize_db() -> Result<()> {
     let db_path = get_db_path();
-    println!("[GaragePro][DB] Initializing DB at: {}", db_path.display());
+    log::info!("Initializing DB at: {}", db_path.display());
     let conn = Connection::open(&db_path)?;
 
     conn.pragma_update(None, "journal_mode", "WAL")?;
@@ -241,7 +240,7 @@ pub fn get_connection() -> Result<Connection> {
     migrate_vehicles_license_plate_search(&conn)?;
 
     if customers_search_needs_backfill(&conn)? {
-        println!("[GaragePro][DB] Running customers search backfill...");
+        log::info!("Running customers search backfill...");
         backfill_customers_search_columns(&conn)?;
     }
 
