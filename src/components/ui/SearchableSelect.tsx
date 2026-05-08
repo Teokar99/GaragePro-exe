@@ -1,6 +1,7 @@
 // src/components/ui/SearchableSelect.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Search, X } from "lucide-react";
+import { normalize } from "../../utils/search";
 
 type Props = {
   value: string;
@@ -33,9 +34,9 @@ export const SearchableSelect: React.FC<Props> = ({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const filteredOptions = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
+    const q = normalize(searchTerm);
     if (!q) return options;
-    return options.filter((opt) => opt.toLowerCase().includes(q));
+    return options.filter((opt) => normalize(opt).includes(q));
   }, [options, searchTerm]);
 
   // Close on outside click
@@ -52,7 +53,7 @@ export const SearchableSelect: React.FC<Props> = ({
     allowCustom &&
     searchTerm.trim().length > 0 &&
     !filteredOptions.some(
-      (o) => o.toLowerCase() === searchTerm.trim().toLowerCase(),
+      (o) => normalize(o) === normalize(searchTerm.trim()),
     );
 
   // Keep highlighted index valid

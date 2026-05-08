@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS service_records (
     mechanic_id TEXT,
     date TEXT NOT NULL,
     description TEXT,
+    description_search TEXT,
     mileage INTEGER,
     notes TEXT,
     services_json TEXT NOT NULL,

@@ -52,11 +52,41 @@ pub fn initialize_db() -> Result<()> {
     migrate_customers_search_columns(&conn)?;
     migrate_vehicles_engine_code(&conn)?;
     migrate_custom_car_data(&conn)?;
+    migrate_service_records_description_search(&conn)?;
     Ok(())
 }
 
 pub fn migrate_vehicles_engine_code(conn: &Connection) -> rusqlite::Result<()> {
     let _ = conn.execute("ALTER TABLE vehicles ADD COLUMN engine_code TEXT", []);
+    Ok(())
+}
+
+pub fn migrate_service_records_description_search(conn: &Connection) -> rusqlite::Result<()> {
+    let _ = conn.execute("ALTER TABLE service_records ADD COLUMN description_search TEXT", []);
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_service_records_description_search ON service_records(description_search)",
+        [],
+    );
+    Ok(())
+}
+
+pub fn backfill_service_records_description_search(conn: &Connection) -> rusqlite::Result<()> {
+    let mut stmt = conn.prepare("SELECT id, description FROM service_records WHERE description_search IS NULL")?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, Option<String>>(1)?,
+        ))
+    })?;
+
+    for r in rows {
+        let (id, description) = r?;
+        let description_search = normalize_gr(description.as_deref().unwrap_or(""));
+        conn.execute(
+            "UPDATE service_records SET description_search = ?1 WHERE id = ?2",
+            rusqlite::params![description_search, id],
+        )?;
+    }
     Ok(())
 }
 
@@ -153,11 +183,14 @@ pub fn get_connection() -> Result<Connection> {
     migrate_customers_search_columns(&conn)?;
     migrate_vehicles_engine_code(&conn)?;
     migrate_custom_car_data(&conn)?;
+    migrate_service_records_description_search(&conn)?;
 
     if customers_search_needs_backfill(&conn)? {
         println!("[GaragePro][DB] Running customers search backfill...");
         backfill_customers_search_columns(&conn)?;
     }
+
+    backfill_service_records_description_search(&conn)?;
 
     Ok(conn)
 }

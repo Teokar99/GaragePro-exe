@@ -65,7 +65,7 @@ pub fn list_services(
         Some(s) if !s.is_empty() => {
             let search_pattern = format!("%{}%", crate::db::normalize_gr(s.trim()));
             (
-                "WHERE c.name_search LIKE ?1 OR v.make LIKE ?1 OR v.model LIKE ?1 OR v.license_plate LIKE ?1 OR sr.description LIKE ?1",
+                "WHERE c.name_search LIKE ?1 OR v.make LIKE ?1 OR v.model LIKE ?1 OR v.license_plate LIKE ?1 OR sr.description_search LIKE ?1",
                 Some(search_pattern),
             )
         }
@@ -205,16 +205,19 @@ pub fn create_service(
     let services_json = serde_json::to_string(&services)
         .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
+    let description_search = crate::db::normalize_gr(description.as_deref().unwrap_or(""));
+
     conn.execute(
-        "INSERT INTO service_records (id, vehicle_id, mechanic_id, date, description, mileage, notes,
+        "INSERT INTO service_records (id, vehicle_id, mechanic_id, date, description, description_search, mileage, notes,
                                       services_json, subtotal, vat, total, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         rusqlite::params![
             &id,
             &vehicle_id,
             &mechanic_id,
             &date,
             &description,
+            &description_search,
             &mileage,
             &notes,
             &services_json,
@@ -260,13 +263,16 @@ pub fn update_service(
     let services_json = serde_json::to_string(&services)
         .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
+    let description_search = crate::db::normalize_gr(description.as_deref().unwrap_or(""));
+
     conn.execute(
-        "UPDATE service_records SET date = ?1, description = ?2, mileage = ?3, notes = ?4,
-                                    services_json = ?5, subtotal = ?6, vat = ?7, total = ?8, updated_at = ?9
-         WHERE id = ?10",
+        "UPDATE service_records SET date = ?1, description = ?2, description_search = ?3, mileage = ?4, notes = ?5,
+                                    services_json = ?6, subtotal = ?7, vat = ?8, total = ?9, updated_at = ?10
+         WHERE id = ?11",
         rusqlite::params![
             &date,
             &description,
+            &description_search,
             &mileage,
             &notes,
             &services_json,

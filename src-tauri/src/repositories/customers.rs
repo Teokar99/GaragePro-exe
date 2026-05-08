@@ -202,10 +202,15 @@ pub fn create_customer(
     let id = generate_uuid();
     let now = Utc::now().to_rfc3339();
 
+    let name_search = crate::db::normalize_gr(&name);
+    let email_search = crate::db::normalize_gr(email.as_deref().unwrap_or(""));
+    let phone_search = crate::db::normalize_gr(phone.as_deref().unwrap_or(""));
+    let afm_search = crate::db::normalize_gr(afm.as_deref().unwrap_or(""));
+
     conn.execute(
-        "INSERT INTO customers (id, name, email, phone, address, afm, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        rusqlite::params![&id, &name, &email, &phone, &address, &afm, &now, &now],
+        "INSERT INTO customers (id, name, email, phone, address, afm, name_search, email_search, phone_search, afm_search, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        rusqlite::params![&id, &name, &email, &phone, &address, &afm, &name_search, &email_search, &phone_search, &afm_search, &now, &now],
     )?;
 
     Ok(Customer {
@@ -231,10 +236,16 @@ pub fn update_customer(
     let conn = get_connection()?;
     let updated_at = Utc::now().to_rfc3339();
 
+    let name_search = crate::db::normalize_gr(&name);
+    let email_search = crate::db::normalize_gr(email.as_deref().unwrap_or(""));
+    let phone_search = crate::db::normalize_gr(phone.as_deref().unwrap_or(""));
+    let afm_search = crate::db::normalize_gr(afm.as_deref().unwrap_or(""));
+
     conn.execute(
-        "UPDATE customers SET name = ?1, email = ?2, phone = ?3, address = ?4, afm = ?5, updated_at = ?6
-         WHERE id = ?7",
-        rusqlite::params![&name, &email, &phone, &address, &afm, &updated_at, &id],
+        "UPDATE customers SET name = ?1, email = ?2, phone = ?3, address = ?4, afm = ?5,
+         name_search = ?6, email_search = ?7, phone_search = ?8, afm_search = ?9, updated_at = ?10
+         WHERE id = ?11",
+        rusqlite::params![&name, &email, &phone, &address, &afm, &name_search, &email_search, &phone_search, &afm_search, &updated_at, &id],
     )?;
 
     let customer = conn.query_row(

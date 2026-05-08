@@ -5,6 +5,7 @@ import { servicesRepository } from "../../lib/repositories/servicesRepository";
 import { vehiclesRepository } from "../../lib/repositories/vehiclesRepository";
 import type { Customer, Vehicle } from "../../types";
 import { getErrorMessage, logError } from "../../utils/errorHandler";
+import { normalize } from "../../utils/search";
 import { VehicleForm } from "../vehicles/VehicleForm";
 
 interface ServiceLine {
@@ -160,18 +161,20 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
 
   // Filter customers by search input
   const filteredCustomers = allCustomers.filter((customer) => {
-    const searchLower = customerSearchInput.toLowerCase();
-    const customerDisplay =
-      `${customer.name} ${customer.phone || ""} ${customer.email || ""}`.toLowerCase();
-    return customerDisplay.includes(searchLower);
+    const q = normalize(customerSearchInput);
+    const customerDisplay = normalize(
+      `${customer.name} ${customer.phone || ""} ${customer.email || ""}`
+    );
+    return customerDisplay.includes(q);
   });
 
   // Filter vehicles by search input
   const filteredVehicles = customerVehicles.filter((vehicle) => {
-    const searchLower = vehicleSearchInput.toLowerCase();
-    const vehicleDisplay =
-      `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.license_plate || ""}`.toLowerCase();
-    return vehicleDisplay.includes(searchLower);
+    const q = normalize(vehicleSearchInput);
+    const vehicleDisplay = normalize(
+      `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.license_plate || ""}`
+    );
+    return vehicleDisplay.includes(q);
   });
 
   // Initialize form data when editing
