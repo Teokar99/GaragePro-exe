@@ -18,6 +18,16 @@ pub fn init_logging() {
 
     let log_path = log_dir.join("garagepro.log");
 
+    // Rotate if file exceeds 5 MB — rename to .bak and start fresh
+    const MAX_LOG_BYTES: u64 = 5 * 1024 * 1024;
+    if let Ok(meta) = fs::metadata(&log_path) {
+        if meta.len() > MAX_LOG_BYTES {
+            let bak = log_dir.join("garagepro.log.bak");
+            let _ = fs::remove_file(&bak);
+            let _ = fs::rename(&log_path, &bak);
+        }
+    }
+
     let log_file = match OpenOptions::new().create(true).append(true).open(&log_path) {
         Ok(f) => f,
         Err(e) => {

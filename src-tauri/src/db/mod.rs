@@ -36,7 +36,7 @@ pub fn get_db_path() -> PathBuf {
     }
 
     path.push("app.db");
-    log::info!("Database path: {}", path.display());
+    log::debug!("Database path: {}", path.display());
     path
 }
 
