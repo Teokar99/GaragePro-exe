@@ -5,109 +5,148 @@ import type { Customer, ServiceRecord, Vehicle } from "../../types";
 import { logError, logInfo } from "../../utils/errorHandler";
 import { servicesRepository } from "../repositories/servicesRepository";
 
+const safe = (v: any, fb = "—") =>
+  v === null || v === undefined || v === "" ? fb : String(v);
+
+const money = (v: any) => {
+  const n = Number(v);
+  return isNaN(n) ? "0.00" : n.toFixed(2);
+};
+
+const SCALE     = 2;          // html2canvas scale factor
+const DOM_W     = 794;        // DOM width = A4 width equivalent
+
+/**
+ * Given all measured element positions (in canvas px), compute where to slice
+ * the canvas so that no element is cut through the middle.
+ *
+ * Strategy: start at each A4-height boundary; if any unbreakable element
+ * straddles that boundary, move the cut to just above that element.
+ */
+function smartCuts(
+  noBreakEls: { top: number; bottom: number }[],
+  a4H: number,
+  canvasHeight: number,
+): number[] {
+  const cuts: number[] = [];
+  let prevCut = 0;
+  let targetY = a4H;
+
+  while (targetY < canvasHeight) {
+    let cutY = targetY;
+
+    for (const el of noBreakEls) {
+      if (el.top < cutY && el.bottom > cutY) {
+        const candidate = el.top - 4;
+        // Only accept the early cut if it still leaves a meaningful page
+        if (candidate > prevCut + a4H * 0.15) {
+          cutY = Math.min(cutY, candidate);
+        }
+      }
+    }
+
+    cuts.push(cutY);
+    prevCut  = cutY;
+    targetY  = cutY + a4H;
+  }
+
+  cuts.push(canvasHeight); // final slice
+  return cuts;
+}
+
 export const exportWorkOrderPdf = async (
   customer: Customer,
   vehicle: Vehicle,
-  recordId: string
+  recordId: string,
 ): Promise<void> => {
   try {
     logInfo("Generating PDF for:", recordId);
 
-    const freshRecord = await servicesRepository.getService(recordId);
+    const fresh = await servicesRepository.getService(recordId);
+    if (!fresh) throw new Error("Service record not found");
+    const record = fresh as unknown as ServiceRecord;
 
-    if (!freshRecord) throw new Error("Service record not found");
-
-    const record = freshRecord as unknown as ServiceRecord;
-
-    const servicesArray =
+    const services =
       Array.isArray(record.services) && record.services.length > 0
         ? record.services
-        : [
-            {
-              description: safe(record.description, "Εργασία"),
-              quantity: 1,
-              unit_price: 0,
-            },
-          ];
+        : [{ description: safe(record.description, "Εργασία"), quantity: 1, unit_price: 0 }];
 
-    // Split services into chunks of 10
-    const SERVICES_PER_PAGE = 10;
-    const serviceChunks: any[][] = [];
-    for (let i = 0; i < servicesArray.length; i += SERVICES_PER_PAGE) {
-      serviceChunks.push(servicesArray.slice(i, i + SERVICES_PER_PAGE));
-    }
+    // ── 1. Mount the HTML ──────────────────────────────────────────────────
+    const container = document.createElement("div");
+    container.innerHTML = generateFullHTML(customer, vehicle, record, services);
+    Object.assign(container.style, {
+      position:  "absolute",
+      left:      "50%",
+      top:       "0",
+      transform: "translateX(-50%)",
+      width:     `${DOM_W}px`,
+      height:    "auto",
+    });
+    document.body.appendChild(container);
 
-    const pages: HTMLDivElement[] = [];
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    let isFirstPage = true;
+    // Wait for fonts / images to settle
+    await new Promise((r) => setTimeout(r, 350));
 
-    // Create page 1 with customer, vehicle, and first 10 services
-    const page1Wrapper = document.createElement("div");
-    page1Wrapper.innerHTML = generatePage1HTML(customer, vehicle, record, serviceChunks[0]);
-    page1Wrapper.style.position = "absolute";
-    page1Wrapper.style.left = "50%";
-    page1Wrapper.style.top = "0";
-    page1Wrapper.style.transform = "translateX(-50%)";
-    page1Wrapper.style.height = "auto";
-    page1Wrapper.style.minHeight = "1400px";
-    page1Wrapper.style.display = "block";
-    document.body.appendChild(page1Wrapper);
-    pages.push(page1Wrapper);
+    // ── 2. Measure element positions while DOM is live ─────────────────────
+    const cRect = container.getBoundingClientRect();
 
-    // Create additional pages for remaining services (if any)
-    for (let i = 1; i < serviceChunks.length; i++) {
-      const pageWrapper = document.createElement("div");
-      pageWrapper.innerHTML = generateServicesPageHTML(serviceChunks[i], i * SERVICES_PER_PAGE, record);
-      pageWrapper.style.position = "absolute";
-      pageWrapper.style.left = "50%";
-      pageWrapper.style.top = `${i * 1500}px`;
-      pageWrapper.style.transform = "translateX(-50%)";
-      pageWrapper.style.height = "auto";
-      pageWrapper.style.minHeight = "1400px";
-      pageWrapper.style.display = "block";
-      document.body.appendChild(pageWrapper);
-      pages.push(pageWrapper);
-    }
+    const noBreakEls = [
+      // Every service row must not be cut
+      ...Array.from(container.querySelectorAll<HTMLElement>("tbody tr")),
+      // Named sections that must not be cut
+      ...Array.from(container.querySelectorAll<HTMLElement>("[data-nobreak]")),
+    ].map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        top:    (r.top    - cRect.top) * SCALE,
+        bottom: (r.bottom - cRect.top) * SCALE,
+      };
+    });
 
-    // Create final page with notes and totals
-    const finalPageWrapper = document.createElement("div");
-    finalPageWrapper.innerHTML = generatePage2HTML(record);
-    finalPageWrapper.style.position = "absolute";
-    finalPageWrapper.style.left = "50%";
-    finalPageWrapper.style.top = `${serviceChunks.length * 1500}px`;
-    finalPageWrapper.style.transform = "translateX(-50%)";
-    finalPageWrapper.style.height = "auto";
-    finalPageWrapper.style.minHeight = "1400px";
-    finalPageWrapper.style.display = "block";
-    document.body.appendChild(finalPageWrapper);
-    pages.push(finalPageWrapper);
+    // ── 3. Capture full-length canvas ──────────────────────────────────────
+    const canvas = await html2canvas(container, {
+      scale:           SCALE,
+      backgroundColor: "#ffffff",
+      useCORS:         true,
+      allowTaint:      false,
+    });
 
-    await new Promise((res) => setTimeout(res, 250));
+    container.remove();
 
-    // Capture and add all pages to PDF
-    for (let i = 0; i < pages.length; i++) {
-      const canvas = await html2canvas(pages[i], {
-        scale: 2,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: false
-      });
+    // ── 4. Compute smart cut points ────────────────────────────────────────
+    const a4H  = (297 / 210) * canvas.width; // A4 height in canvas pixels
+    const cuts = smartCuts(noBreakEls, a4H, canvas.height);
 
-      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+    // ── 5. Slice into PDF pages ────────────────────────────────────────────
+    const pdf  = new jsPDF("p", "mm", "a4");
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = pdf.internal.pageSize.getHeight();
 
-      if (!isFirstPage) {
-        pdf.addPage();
-      }
+    let srcY      = 0;
+    let firstPage = true;
 
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-      isFirstPage = false;
+    for (const cutY of cuts) {
+      const sliceH = cutY - srcY;
+      if (sliceH <= 0) continue;
+
+      // Always paint onto a full A4-height canvas (remainder stays white)
+      const slice = document.createElement("canvas");
+      slice.width  = canvas.width;
+      slice.height = Math.ceil(a4H);
+      const ctx = slice.getContext("2d")!;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, slice.width, slice.height);
+      ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH,
+                            0, 0,   canvas.width, sliceH);
+
+      if (!firstPage) pdf.addPage();
+      pdf.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pdfW, pdfH);
+
+      srcY      = cutY;
+      firstPage = false;
     }
 
     pdf.save(`work-order-${recordId}.pdf`);
-
-    pages.forEach(page => page.remove());
     logInfo("PDF created successfully.");
   } catch (err) {
     logError("PDF generation failed:", err);
@@ -116,614 +155,229 @@ export const exportWorkOrderPdf = async (
   }
 };
 
-const safe = (value: any, fallback = "—") =>
-  value === null || value === undefined || value === "" ? fallback : value;
-
-const money = (value: any) => {
-  const num = Number(value);
-  return isNaN(num) ? "0.00" : num.toFixed(2);
-};
-
-function generatePage1HTML(
+// ─────────────────────────────────────────────────────────────────────────────
+// HTML template — single flowing document, browser handles Greek fonts
+// Add data-nobreak to every block that must never be sliced mid-element
+// ─────────────────────────────────────────────────────────────────────────────
+function generateFullHTML(
   customer: Customer,
   vehicle: Vehicle,
   record: ServiceRecord,
-  services: any[]
+  services: any[],
 ): string {
-  const currentDate = new Date().toLocaleDateString("el-GR");
+  const date = new Date().toLocaleDateString("el-GR");
 
-  const servicesRows = services
+  const rows = services
     .map((s, i) => {
-      const qty = Number(s.quantity) || 1;
+      const qty   = Number(s.quantity)   || 1;
       const price = Number(s.unit_price) || 0;
       const total = qty * price;
-
+      const qtyStr = qty % 1 === 0 ? String(qty) : String(parseFloat(qty.toFixed(4)));
       return `
         <tr>
-          <td>${i + 1}</td>
+          <td style="text-align:center;color:#9ca3af;">${i + 1}</td>
           <td>${safe(s.description)}</td>
-          <td style="text-align:center;">${qty}</td>
+          <td style="text-align:center;">${qtyStr}</td>
           <td style="text-align:right;">${money(price)}€</td>
-          <td style="text-align:right;font-weight:600;">${money(total)}€</td>
-        </tr>
-      `;
+          <td style="text-align:right;font-weight:700;">${money(total)}€</td>
+        </tr>`;
     })
     .join("");
 
+  const hasNotes = record.notes && record.notes.trim();
+
   return `
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin:0; padding:0; box-sizing:border-box; }
 
-.pdf-container {
-  font-family: Arial, sans-serif;
+.wrap {
   width: 794px;
-  min-height: 1123px;
-  padding: 20px;
+  padding: 28px 28px 44px;
   background: #fff;
-  color: #333;
-  line-height: 1.6;
-  font-size: 14px;
+  color: #1f2937;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
+/* Header */
 .header {
-  text-align: center;
-  position: relative;
-  margin-bottom: 30px;
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding-bottom: 18px;
   border-bottom: 3px solid #ef4444;
-
-  padding-bottom: 20px;
+  margin-bottom: 22px;
 }
+.logo { width: 95px; height: auto; flex-shrink: 0; }
+.hc  { flex: 1; text-align: center; }
+.co-name { font-size: 22px; font-weight: 700; color: #ef4444; margin-bottom: 3px; }
+.co-sub  { font-size: 11.5px; font-weight: 700; color: #4b5563; margin-bottom: 4px; }
+.co-info { font-size: 11px; color: #6b7280; margin-bottom: 10px; line-height: 1.6; }
+.doc-title { font-size: 18px; font-weight: 700; color: #111827; }
+.doc-date  { font-size: 12px; color: #6b7280; margin-top: 3px; }
 
-.logo {
-  width: 200px;
-  height: auto;
-  margin-bottom: 15px;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-.company-name {
-  font-size: 24px;
-  font-weight: 700;
-  color: #ef4444;
-  margin-bottom: 8px;
-}
-
-.company-details {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 15px;
-}
-
-.work-order-title {
-  font-size: 20px;
-  font-weight: 700;
-  margin-top: 10px;
-}
-
-.date {
-  font-size: 14px;
-  color: #6b7280;
-  margin-top: 5px;
-}
-
-.content {
+/* Info grid */
+.info-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 25px;
+  gap: 14px;
+  margin-bottom: 22px;
 }
-
-.section {
+.box {
   background: #f8fafc;
-  padding: 15px;
-  border-radius: 8px;
-
   border-left: 4px solid #ef4444;
+  border-radius: 6px;
+  padding: 12px 14px;
 }
-
-.section-title {
-  font-size: 16px;
-  font-weight: 700; /* was 600 */
-  color: #ef4444;
-  margin-bottom: 15px;
-  border-bottom: 1px solid #ef4444;
-  padding-bottom: 5px;
+.box-title {
+  font-size: 13px; font-weight: 700; color: #ef4444;
+  border-bottom: 1px solid #fca5a5;
+  padding-bottom: 5px; margin-bottom: 9px;
 }
+.field { font-size: 12px; margin-bottom: 5px; display: flex; gap: 6px; }
+.field b { width: 78px; flex-shrink: 0; color: #374151; }
+.field span { color: #6b7280; }
 
-.field {
-  margin-bottom: 8px;
-  font-size: 13px;
-}
-
-.field-label {
-  display: inline-block;
-  width: 100px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.field-value {
-  color: #6b7280;
-}
-
-.services-section {
-  grid-column: 1 / -1;
-  margin-top: 15px;
-}
-
-.services-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  font-size: 13px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.services-table th {
-  background: #ef4444;
-  color: white;
-  padding: 10px 8px;
-  text-align: left;
-}
-
-.services-table td {
-  padding: 10px 8px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.services-table tr:nth-child(even) {
-  background: #f8fafc;
-}
-
-.footer {
-  margin-top: 30px;
-  text-align: center;
-  font-size: 11px;
-  color: #9ca3af;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 15px;
-}
-
-.disclaimer {
-  margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid #e2e8f0;
-  font-size: 10px;
-  color: #6b7280;
-  line-height: 1.5;
-  text-align: center;
-  font-style: italic;
-}
-</style>
-
-<div class="pdf-container" lang="el">
-
-  <div class="header">
-    <img src="/screenshot_2025-12-04_155357.png" alt="Carabetsos Logo" class="logo" />
-    <div class="company-name">Karabetsos I. Karabetsos L.</div>
-    <div style="font-size: 14px; color: #666; margin-bottom: 10px; font-weight: 600;">
-      ΓΕΝΙΚΟ ΣΥΝΕΡΓΕΙΟ / ΗΛΕΚΤΡΟΛΟΓΕΙΟ
-    </div>
-    <div class="company-details">
-      Τηλ: 2106611800 |ΑΦΜ 802705280 | ΔΟΥ: ΚΕΦΟΔΕ ΑΤΤΙΚΗΣ<br>
-      Διεύθυνση: ΕΥΒΟΙΑΣ 15, ΓΕΡΑΚΑΣ 15344
-    </div>
-    <div class="work-order-title">Εντολή Εργασίας</div>
-    <div class="date">${currentDate}</div>
-  </div>
-
-  <div class="content">
-
-    <div class="section">
-      <div class="section-title">Στοιχεία Πελάτη</div>
-      <div class="field"><span class="field-label">Όνομα:</span>
-        <span class="field-value">${safe(customer.name)}</span></div>
-
-      <div class="field"><span class="field-label">Τηλέφωνο:</span>
-        <span class="field-value">${safe(customer.phone)}</span></div>
-
-      <div class="field"><span class="field-label">Email:</span>
-        <span class="field-value">${safe(customer.email)}</span></div>
-
-      <div class="field"><span class="field-label">Διεύθυνση:</span>
-        <span class="field-value">${safe(customer.address)}</span></div>
-
-      <div class="field"><span class="field-label">ΑΦΜ:</span>
-        <span class="field-value">${safe(customer.afm)}</span></div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Στοιχεία Οχήματος</div>
-
-      <div class="field"><span class="field-label">Μάρκα:</span>
-        <span class="field-value">${safe(vehicle.make)}</span></div>
-
-      <div class="field"><span class="field-label">Μοντέλο:</span>
-        <span class="field-value">${safe(vehicle.model)}</span></div>
-
-      <div class="field"><span class="field-label">Έτος:</span>
-        <span class="field-value">${safe(vehicle.year)}</span></div>
-
-      <div class="field"><span class="field-label">Πινακίδα:</span>
-        <span class="field-value">${safe(vehicle.license_plate)}</span></div>
-
-      <div class="field"><span class="field-label">VIN:</span>
-        <span class="field-value">${safe(vehicle.vin)}</span></div>
-
-      <div class="field"><span class="field-label">Χιλιόμετρα:</span>
-        <span class="field-value">${safe(record.mileage)}</span></div>
-    </div>
-
-    <div class="section services-section">
-      <div class="section-title">Εργασίες</div>
-
-      <table class="services-table">
-        <thead>
-          <tr>
-            <th>Α/Α</th>
-            <th>Περιγραφή</th>
-            <th style="text-align:center;">Ποσότητα</th>
-            <th style="text-align:right;">Τιμή Μονάδας</th>
-            <th style="text-align:right;">Σύνολο</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${servicesRows}
-        </tbody>
-      </table>
-    </div>
-
-
-  </div>
-
-  <div class="footer">
-    <p>Αυτό το έγγραφο δημιουργήθηκε αυτόματα από το σύστημα διαχείρισης εργασιών.</p>
-    <p>Εντολή Εργασίας ID: ${record.id}</p>
-    <p>Ημερομηνία Δημιουργίας: ${currentDate}</p>
-    <div class="disclaimer">Το παρόν έγγραφο αποτελεί δελτίο/σύνοψη εργασιών και εκδίδεται αποκλειστικά για ενημερωτικούς σκοπούς. Δεν αποτελεί νόμιμη απόδειξη, τιμολόγιο ή άλλο φορολογικό παραστατικό.</div>
-  </div>
-</div>
-`;
-}
-
-function generateServicesPageHTML(
-  services: any[],
-  startIndex: number,
-  record: ServiceRecord
-): string {
-  const currentDate = new Date().toLocaleDateString("el-GR");
-
-  const servicesRows = services
-    .map((s, i) => {
-      const qty = Number(s.quantity) || 1;
-      const price = Number(s.unit_price) || 0;
-      const total = qty * price;
-
-      return `
-        <tr>
-          <td>${startIndex + i + 1}</td>
-          <td>${safe(s.description)}</td>
-          <td style="text-align:center;">${qty}</td>
-          <td style="text-align:right;">${money(price)}€</td>
-          <td style="text-align:right;font-weight:600;">${money(total)}€</td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  return `
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-.pdf-container {
-  font-family: Arial, sans-serif;
-  width: 794px;
-  min-height: 1123px;
-  padding: 20px;
-  background: #fff;
-  color: #333;
-  line-height: 1.6;
-  font-size: 14px;
-}
-
-.header {
-  text-align: center;
-  position: relative;
-  margin-bottom: 30px;
+/* Section title */
+.sec-title {
+  font-size: 14px; font-weight: 700; color: #111827;
   border-bottom: 2px solid #ef4444;
-  padding-bottom: 15px;
+  padding-bottom: 5px; margin-bottom: 11px;
 }
 
-.logo {
-  width: 150px;
-  height: auto;
-  margin-bottom: 10px;
-  position: absolute;
-  top: 0;
-  left: 0;
+/* Services table */
+.st {
+  width: 100%; border-collapse: collapse;
+  font-size: 12.5px; margin-bottom: 24px;
 }
-
-.page-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 5px;
+.st th {
+  background: #ef4444; color: #fff;
+  padding: 9px 8px; text-align: left; font-weight: 700;
 }
+.st td { padding: 8px 8px; border-bottom: 1px solid #e5e7eb; }
+.st tr:nth-child(even) td { background: #f9fafb; }
 
-.date {
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.section {
+/* Notes */
+.notes-box {
   background: #f8fafc;
-  padding: 20px;
-  border-radius: 8px;
   border-left: 4px solid #ef4444;
-  margin-bottom: 20px;
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #ef4444;
-  margin-bottom: 15px;
-  border-bottom: 1px solid #ef4444;
-  padding-bottom: 5px;
-}
-
-.services-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  font-size: 13px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.services-table th {
-  background: #ef4444;
-  color: white;
-  padding: 10px 8px;
-  text-align: left;
-}
-
-.services-table td {
-  padding: 10px 8px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.services-table tr:nth-child(even) {
-  background: #f8fafc;
-}
-
-.footer {
-  margin-top: 30px;
-  text-align: center;
-  font-size: 11px;
-  color: #9ca3af;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 15px;
-}
-
-.disclaimer {
-  margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid #e2e8f0;
-  font-size: 10px;
-  color: #6b7280;
-  line-height: 1.5;
-  text-align: center;
-  font-style: italic;
-}
-</style>
-
-<div class="pdf-container" lang="el">
-  <div class="header">
-    <img src="/screenshot_2025-12-04_155357.png" alt="Carabetsos Logo" class="logo" />
-    <div class="page-title">Εντολή Εργασίας - Εργασίες (Συνέχεια)</div>
-    <div class="date">${currentDate}</div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Εργασίες (Συνέχεια)</div>
-    <table class="services-table">
-      <thead>
-        <tr>
-          <th>Α/Α</th>
-          <th>Περιγραφή</th>
-          <th style="text-align:center;">Ποσότητα</th>
-          <th style="text-align:right;">Τιμή Μονάδας</th>
-          <th style="text-align:right;">Σύνολο</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${servicesRows}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="footer">
-    <p>Εντολή Εργασίας ID: ${record.id}</p>
-    <p>Ημερομηνία Δημιουργίας: ${currentDate}</p>
-    <div class="disclaimer">Το παρόν έγγραφο αποτελεί δελτίο/σύνοψη εργασιών και εκδίδεται αποκλειστικά για ενημερωτικούς σκοπούς. Δεν αποτελεί νόμιμη απόδειξη, τιμολόγιο ή άλλο φορολογικό παραστατικό.</div>
-  </div>
-</div>
-`;
-}
-
-function generatePage2HTML(record: ServiceRecord): string {
-  const currentDate = new Date().toLocaleDateString("el-GR");
-
-  return `
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-.pdf-container {
-  font-family: Arial, sans-serif;
-  width: 794px;
-  min-height: 1123px;
-  padding: 20px;
-  background: #fff;
-  color: #333;
-  line-height: 1.6;
-  font-size: 14px;
-}
-
-.header {
-  text-align: center;
-  position: relative;
-  margin-bottom: 30px;
-
-  border-bottom: 2px solid #ef4444;
-
-  padding-bottom: 15px;
-}
-
-.logo {
-  width: 150px;
-  height: auto;
-  margin-bottom: 10px;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-.page-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 5px;
-}
-
-.date {
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.section {
-  background: #f8fafc;
-  padding: 20px;
-  border-radius: 8px;
-  border-left: 4px solid #ef4444;
-
-  margin-bottom: 20px;
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 700;
-
-
-  margin-bottom: 15px;
-  border-bottom: 1px solid #ef4444;
-  padding-bottom: 5px;
-}
-
-.notes-content {
-  font-weight: 700; 
-  color: #374151;
-  padding: 15px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  min-height: 400px;
-  font-size: 14px;
+  border-radius: 6px;
+  padding: 12px 14px 14px;
+  font-size: 12.5px;
   white-space: pre-wrap;
-  line-height: 1.8;
+  line-height: 1.75;
+  color: #1f2937;
+  margin-bottom: 20px;
 }
 
-.totals-section {
-  margin-top: 30px;
-  margin-bottom: 30px;
-  display: flex;
-  justify-content: flex-end;
-}
-
+/* Totals */
+.totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 30px; }
 .totals-box {
   background: #f1f5f9;
-  padding: 15px;
+  border: 1px solid #dde4ee;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  min-width: 250px;
+  padding: 14px 20px;
+  min-width: 210px;
 }
-
-.total-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 5px;
-  font-size: 13px;
-}
-
-.total-row.final {
+.total-row-final {
+  display: flex; justify-content: space-between;
+  font-size: 16px; font-weight: 700; color: #111827;
   border-top: 2px solid #ef4444;
-  padding-top: 8px;
-  margin-top: 8px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #111111;
+  padding-top: 9px; margin-top: 4px;
 }
 
-.totals-box span {
-  color: #111;
-}
-
+/* Footer */
 .footer {
-  margin-top: 30px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 12px;
   text-align: center;
-  font-size: 11px;
-  color: #9ca3af;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 15px;
+  font-size: 10px; color: #9ca3af;
 }
-
 .disclaimer {
-  margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid #e2e8f0;
-  font-size: 10px;
-  color: #6b7280;
-  line-height: 1.5;
-  text-align: center;
-  font-style: italic;
+  margin-top: 7px; font-size: 9px; color: #b0b7c3;
+  font-style: italic; line-height: 1.55;
 }
 </style>
 
-<div class="pdf-container" lang="el">
-  <div class="header">
-    <img src="/screenshot_2025-12-04_155357.png" alt="Carabetsos Logo" class="logo" />
-    <div class="page-title">Εντολή Εργασίας - Παρατηρήσεις (Σελίδα 2)</div>
-    <div class="date">${currentDate}</div>
+<div class="wrap">
+
+  <!-- Header (never broken) -->
+  <div class="header" data-nobreak>
+    <img src="/screenshot_2025-12-04_155357.png" class="logo" alt="Logo" />
+    <div class="hc">
+      <div class="co-name">Karabetsos I. Karabetsos L.</div>
+      <div class="co-sub">ΓΕΝΙΚΟ ΣΥΝΕΡΓΕΙΟ / ΗΛΕΚΤΡΟΛΟΓΕΙΟ</div>
+      <div class="co-info">
+        Τηλ: 2106611800 &nbsp;|&nbsp; ΑΦΜ 802705280 &nbsp;|&nbsp; ΔΟΥ: ΚΕΦΟΔΕ ΑΤΤΙΚΗΣ<br>
+        Διεύθυνση: ΕΥΒΟΙΑΣ 15, ΓΕΡΑΚΑΣ 15344
+      </div>
+      <div class="doc-title">Εντολή Εργασίας</div>
+      <div class="doc-date">${date}</div>
+    </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">Παρατηρήσεις</div>
-    <div class="notes-content">${safe(record.notes)}</div>
+  <!-- Info boxes (never broken) -->
+  <div class="info-grid" data-nobreak>
+    <div class="box">
+      <div class="box-title">Στοιχεία Πελάτη</div>
+      <div class="field"><b>Όνομα:</b>     <span>${safe(customer.name)}</span></div>
+      <div class="field"><b>Τηλέφωνο:</b>  <span>${safe(customer.phone)}</span></div>
+      <div class="field"><b>Email:</b>      <span>${safe(customer.email)}</span></div>
+      <div class="field"><b>Διεύθυνση:</b> <span>${safe(customer.address)}</span></div>
+      <div class="field"><b>ΑΦΜ:</b>       <span>${safe(customer.afm)}</span></div>
+    </div>
+    <div class="box">
+      <div class="box-title">Στοιχεία Οχήματος</div>
+      <div class="field"><b>Μάρκα:</b>    <span>${safe(vehicle.make)}</span></div>
+      <div class="field"><b>Μοντέλο:</b>  <span>${safe(vehicle.model)}</span></div>
+      <div class="field"><b>Έτος:</b>     <span>${safe(vehicle.year)}</span></div>
+      <div class="field"><b>Πινακίδα:</b> <span>${safe(vehicle.license_plate)}</span></div>
+      <div class="field"><b>VIN:</b>       <span>${safe(vehicle.vin)}</span></div>
+      <div class="field"><b>Χιλ/τρα:</b>  <span>${safe(record.mileage)}</span></div>
+    </div>
   </div>
 
-  <div class="totals-section">
+  <!-- Services (each <tr> is measured individually by smartCuts) -->
+  <div class="sec-title">Εργασίες</div>
+  <table class="st">
+    <thead>
+      <tr data-nobreak>
+        <th style="width:38px;text-align:center;">Α/Α</th>
+        <th>Περιγραφή</th>
+        <th style="width:56px;text-align:center;">Ποσ.</th>
+        <th style="width:96px;text-align:right;">Τιμή/Μον.</th>
+        <th style="width:88px;text-align:right;">Σύνολο</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <!-- Notes — data-nobreak keeps it whole when it fits on current page -->
+  ${hasNotes ? `
+  <div data-nobreak>
+    <div class="sec-title">Παρατηρήσεις</div>
+    <div class="notes-box">${safe(record.notes)}</div>
+  </div>` : ""}
+
+  <!-- Totals — never broken -->
+  <div class="totals-wrap" data-nobreak>
     <div class="totals-box">
-      <div class="total-row">
-        <span>Υποσύνολο:</span>
-        <span>${money(record.subtotal)}€</span>
-      </div>
-      <div class="total-row">
-        <span>ΦΠΑ 24%:</span>
-        <span>${money(record.vat)}€</span>
-      </div>
-      <div class="total-row final">
+      <div class="total-row-final">
         <span>ΣΥΝΟΛΟ:</span>
         <span>${money(record.total)}€</span>
       </div>
     </div>
   </div>
-  <div class="footer">
-    <p>Εντολή Εργασίας ID: ${record.id} - Σελίδα 2</p>
-    <p>Ημερομηνία Δημιουργίας: ${currentDate}</p>
-    <div class="disclaimer">Το παρόν έγγραφο αποτελεί δελτίο/σύνοψη εργασιών και εκδίδεται αποκλειστικά για ενημερωτικούς σκοπούς. Δεν αποτελεί νόμιμη απόδειξη, τιμολόγιο ή άλλο φορολογικό παραστατικό.</div>
+
+  <!-- Footer — never broken -->
+  <div class="footer" data-nobreak>
+    <div>Εντολή Εργασίας ID: ${record.id} &nbsp;|&nbsp; Ημερομηνία: ${date}</div>
+    <div class="disclaimer">
+      Το παρόν έγγραφο αποτελεί δελτίο/σύνοψη εργασιών και εκδίδεται αποκλειστικά για ενημερωτικούς σκοπούς.
+      Δεν αποτελεί νόμιμη απόδειξη, τιμολόγιο ή άλλο φορολογικό παραστατικό.
+    </div>
   </div>
-</div>
-`;
+
+</div>`;
 }

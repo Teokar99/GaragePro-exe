@@ -674,14 +674,15 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                           <td className="border border-gray-300 px-3 py-2">
                             <input
                               type="number"
-                              min={1}
+                              min={0.01}
+                              step="0.01"
                               value={service.quantity}
                               onFocus={(e) => e.target.select()}
                               onChange={(e) =>
                                 updateServiceLine(
                                   service.id,
                                   "quantity",
-                                  parseInt(e.target.value) || 1,
+                                  parseFloat(e.target.value) || 1,
                                 )
                               }
                               className="w-full px-2 py-1 text-sm border-0 focus:ring-0 bg-transparent text-center"

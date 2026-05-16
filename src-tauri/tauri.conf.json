@@ -30,7 +30,9 @@
       "window": {
         "all": true
       },
-      "dialog": { "all": true }
+      "dialog": {
+        "all": true
+      }
     },
     "bundle": {
       "active": true,
@@ -58,7 +60,9 @@
       },
       "resources": [],
       "shortDescription": "Garage Management System",
-      "targets": ["msi"],
+      "targets": [
+        "msi"
+      ],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
