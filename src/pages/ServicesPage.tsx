@@ -156,8 +156,8 @@ export const ServicesPage: React.FC<{
           0,
         );
 
-  const vat = typeof service.vat === "number" ? service.vat : subtotal * 0.24;
-  const total = typeof service.total === "number" ? service.total : subtotal + vat;
+  const vat = 0;
+  const total = subtotal;
 
   return {
     id: service.id,
@@ -340,11 +340,8 @@ const handleSaveService = async () => {
                 0,
               );
 
-        const vat =
-          typeof service.vat === "number" ? service.vat : subtotal * 0.24;
-
-        const total =
-          typeof service.total === "number" ? service.total : subtotal + vat;
+        const vat = 0;
+        const total = subtotal;
 
         return {
           id: service.id,

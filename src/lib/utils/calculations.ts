@@ -7,10 +7,10 @@ export const calculateSubtotal = (services: ServiceLine[]): number => {
   );
 };
 
-export const calculateVAT = (subtotal: number, rate: number = 0.24): number => {
-  return subtotal * rate;
+export const calculateVAT = (_subtotal: number, _rate: number = 0): number => {
+  return 0;
 };
 
-export const calculateTotal = (subtotal: number, vat: number): number => {
-  return subtotal + vat;
+export const calculateTotal = (subtotal: number, _vat: number): number => {
+  return subtotal;
 };

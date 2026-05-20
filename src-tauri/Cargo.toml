@@ -1,6 +1,6 @@
 [package]
 name = "garagepro"
-version = "0.2.0"
+version = "0.3.0"
 description = "GaragePro - Professional Garage Management System"
 authors = ["GaragePro Team"]
 license = ""

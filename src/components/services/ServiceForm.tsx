@@ -292,8 +292,8 @@ const updateServiceLine = (id: string, field: string, value: any) => {
     }, 0);
   }, [formData.services]);
 
-  const vat = React.useMemo(() => subtotal * 0.24, [subtotal]);
-  const total = React.useMemo(() => subtotal + vat, [subtotal, vat]);
+  const vat = 0;
+  const total = subtotal;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -515,7 +515,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                     </div>
                   </div>
                 )}
-                {selectedCustomerId && filteredVehicles.length > 0 && !lockCustomerVehicle && (
+                {selectedCustomerId && customerVehicles.length > 0 && !lockCustomerVehicle && (
                   <div className="mt-2 flex items-center justify-between">
                     <p className="text-sm text-green-600 flex items-center">
                       <svg
@@ -531,8 +531,8 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                           d="M5 13l4 4L19 7"
                         />
                       </svg>
-                      {filteredVehicles.length} vehicle
-                      {filteredVehicles.length !== 1 ? "s" : ""} available
+                      {customerVehicles.length} vehicle
+                      {customerVehicles.length !== 1 ? "s" : ""} available
                     </p>
                     <button
                       type="button"
@@ -574,7 +574,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                     Please select a customer first
                   </p>
                 )}
-                {selectedCustomerId && filteredVehicles.length === 0 && !lockCustomerVehicle && (
+                {selectedCustomerId && customerVehicles.length === 0 && !lockCustomerVehicle && (
                   <p className="text-sm text-orange-600 mt-2 flex items-center">
                     <svg
                       className="w-4 h-4 mr-1"
@@ -650,7 +650,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                   <tbody className="bg-white">
                     {formData.services.map((service, index) => {
                       const lineTotal =
-                        (service.quantity || 1) * (service.unit_price || 0);
+                        Number(service.quantity) * Number(service.unit_price);
                       return (
                         <tr key={service.id} className="hover:bg-gray-50">
                           <td className="border border-gray-300 px-2 py-2 text-center text-sm text-gray-900">
@@ -682,7 +682,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                                 updateServiceLine(
                                   service.id,
                                   "quantity",
-                                  parseFloat(e.target.value) || 1,
+                                  isNaN(parseFloat(e.target.value)) ? 1 : parseFloat(e.target.value),
                                 )
                               }
                               className="w-full px-2 py-1 text-sm border-0 focus:ring-0 bg-transparent text-center"
@@ -699,7 +699,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                                 updateServiceLine(
                                   service.id,
                                   "unit_price",
-                                  parseFloat(e.target.value) || 0,
+                                  isNaN(parseFloat(e.target.value)) ? 0 : parseFloat(e.target.value),
                                 )
                               }
                               className="w-full px-2 py-1 text-sm border-0 focus:ring-0 bg-transparent text-right"
@@ -738,15 +738,7 @@ const updateServiceLine = (id: string, field: string, value: any) => {
                 </button>
 
                 <div className="bg-gray-50 p-4 rounded-lg min-w-64 text-sm">
-                  <div className="flex justify-between mb-1">
-                    <span>Subtotal:</span>
-                    <span className="font-medium">{subtotal.toFixed(2)}€</span>
-                  </div>
-                  <div className="flex justify-between mb-1">
-                    <span>VAT 24%:</span>
-                    <span className="font-medium">{vat.toFixed(2)}€</span>
-                  </div>
-                  <div className="flex justify-between font-semibold text-base border-t border-gray-300 pt-1">
+                  <div className="flex justify-between font-semibold text-base">
                     <span>TOTAL:</span>
                     <span>{total.toFixed(2)}€</span>
                   </div>
